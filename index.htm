@@ -1205,7 +1205,7 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
             if (!isFeatureAllowed(activeUser.role, 'poin')) {
               return <div className="text-center py-10 font-bold text-gray-400">Anda tidak diizinkan mengakses modul Poin.</div>;
             }
-            return <PointsView user={activeUser} points={athletePoints} addPoint={addPoint} updatePoint={updatePoint} deletePoint={deletePoint} users={users} triggerToast={triggerToast} />;
+            return <PointsView user={activeUser} points={athletePoints} addPoint={addPoint} updatePoint={updatePoint} deletePoint={deletePoint} users={users} clubs={clubs} triggerToast={triggerToast} />;
           
           case 'akun': return <AccountManager user={activeUser} users={users} addUser={addUser} updateUser={updateUser} deleteUser={deleteUser} clubs={clubs} addClub={addClub} deleteClub={deleteClub} triggerToast={triggerToast} featureSettings={featureSettings} updateFeatureSettings={updateFeatureSettingsOnDb} />;
           default: return <Dashboard user={activeUser} articles={articles} addArticle={addArticle} updateArticle={updateArticle} deleteArticle={deleteArticle} users={users} uktRegistrations={uktRegistrations} athletePoints={athletePoints} triggerToast={triggerToast} sppBills={sppBills} sppPayments={sppPayments} updateSppPayment={updateSppPayment} setCurrentTab={setCurrentTab} uktEvents={uktEvents} championships={championships} featureSettings={featureSettings} sanctions={sanctions} attendances={attendances} dismissedNotifs={dismissedNotifs} setDismissedNotifs={setDismissedNotifs} />;
@@ -1294,7 +1294,11 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
       
       const handleSave = (e) => { 
         e.preventDefault(); 
-        updateUser(user.id, formData); 
+        // Atlet & Pelatih tidak boleh mengubah No. Registrasi — pertahankan nilai asli
+        const dataToSave = (user.role === 'atlet' || user.role === 'pelatih')
+          ? { ...formData, regNo: user.regNo }
+          : formData;
+        updateUser(user.id, dataToSave); 
         setIsEditing(false); 
         triggerToast("Data identitas diperbarui (DB)!"); 
       };
@@ -1314,7 +1318,7 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
               <div className="bg-white p-4 rounded-3xl border border-gray-100 shadow-sm space-y-4">
                 <div className="flex justify-between items-center border-b pb-2"><span className="font-extrabold text-sm text-gray-800 flex items-center gap-1.5"><Icon name="User" className="w-4 h-4 text-red-600" /> Data Diri</span><button onClick={() => setIsEditing(true)} className="text-blue-600 hover:text-blue-800 text-xs font-bold flex items-center gap-1"><Icon name="Edit" className="w-3.5 h-3.5" /> Edit Data</button></div>
                 <div className="space-y-3 text-xs">
-                  <div className="flex flex-col gap-0.5"><span className="text-gray-400 font-bold uppercase text-[9px]">No. Registrasi / Sertifikat</span> <span className="font-bold text-gray-800">{user.regNo || '-'}</span></div>
+                  <div className="flex flex-col gap-0.5"><span className="text-gray-400 font-bold uppercase text-[9px]">No. Registrasi / Sertifikat {(user.role === 'atlet' || user.role === 'pelatih') && <span className="inline-flex items-center gap-0.5 text-[8px] text-amber-600 font-bold"><Icon name="Lock" className="w-2.5 h-2.5" /> Dilindungi</span>}</span> <span className="font-bold text-gray-800">{user.regNo || '-'}</span></div>
                   <div className="flex flex-col gap-0.5"><span className="text-gray-400 font-bold uppercase text-[9px]">Tempat, Tanggal Lahir</span> <span className="font-bold text-gray-800">{user.placeOfBirth || '-'}, {user.dateOfBirth || '-'}</span></div>
                   <div className="flex flex-col gap-0.5"><span className="text-gray-400 font-bold uppercase text-[9px]">Jenis Kelamin</span> <span className="font-bold text-gray-800">{user.gender || '-'}</span></div>
                   <div className="flex flex-col gap-0.5"><span className="text-gray-400 font-bold uppercase text-[9px]">Email</span> <span className="font-bold text-gray-800">{user.email}</span></div>
@@ -1398,7 +1402,19 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
           ) : (
             <form onSubmit={handleSave} className="bg-red-50 p-4 rounded-3xl border border-red-100 space-y-3"><div className="flex justify-between items-center pb-2 border-b border-red-200"><span className="font-extrabold text-sm text-red-900">Edit Identitas Pribadi</span><button type="button" onClick={() => setIsEditing(false)} className="text-gray-400 hover:text-red-700"><Icon name="XCircle" className="w-5 h-5" /></button></div>
               <div><label className="block text-[10px] font-bold text-gray-700 uppercase mb-1">Nama Lengkap</label><input type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full text-xs p-2 bg-white border rounded-xl" required /></div>
-              <div><label className="block text-[10px] font-bold text-gray-700 uppercase mb-1">No. Registrasi / Sertifikat</label><input type="text" value={formData.regNo || ''} onChange={e => setFormData({...formData, regNo: e.target.value})} className="w-full text-xs p-2 bg-white border rounded-xl" /></div>
+              <div>
+                <label className="block text-[10px] font-bold text-gray-700 uppercase mb-1">No. Registrasi / Sertifikat</label>
+                {(user.role === 'atlet' || user.role === 'pelatih') ? (
+                  <div className="relative">
+                    <input type="text" value={formData.regNo || ''} disabled className="w-full text-xs p-2 bg-gray-100 border rounded-xl text-gray-500 cursor-not-allowed pr-8" />
+                    <div className="absolute right-2 top-1/2 -translate-y-1/2" title="Hanya admin club & super admin yang dapat mengubah No. Registrasi">
+                      <Icon name="Lock" className="w-3.5 h-3.5 text-gray-400" />
+                    </div>
+                  </div>
+                ) : (
+                  <input type="text" value={formData.regNo || ''} onChange={e => setFormData({...formData, regNo: e.target.value})} className="w-full text-xs p-2 bg-white border rounded-xl" />
+                )}
+              </div>
               <div className="grid grid-cols-2 gap-2">
                 <div><label className="block text-[10px] font-bold text-gray-700 uppercase mb-1">Tempat Lahir</label><input type="text" value={formData.placeOfBirth || ''} onChange={e => setFormData({...formData, placeOfBirth: e.target.value})} className="w-full text-xs p-2 bg-white border rounded-xl" /></div>
                 <div><label className="block text-[10px] font-bold text-gray-700 uppercase mb-1">Tanggal Lahir</label><input type="date" value={formData.dateOfBirth || ''} onChange={e => setFormData({...formData, dateOfBirth: e.target.value})} className="w-full text-xs p-2 bg-white border rounded-xl" /></div>
@@ -2426,6 +2442,7 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
       const [showCreateUKT, setShowCreateUKT] = useState(false);
       const [searchQuery, setSearchQuery] = useState('');
       const [peringkatPeriod, setPeringkatPeriod] = useState('Periode I');
+      const [uktEventFilter, setUktEventFilter] = useState('semua');
 
       // Fungsi Download PDF Peringkat UKT
       const handleDownloadPeringkatPDF = () => {
@@ -2752,71 +2769,576 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
         triggerToast("Data UKT berhasil diunduh!");
       };
 
-      // FITUR BARU: DOWNLOAD PESERTA UKT BERBENTUK PDF
-      const handleDownloadUKTPDF = () => {
-        if (visibleRegistrations.length === 0) {
-          triggerToast("Belum ada data pendaftar UKT untuk diunduh sebagai PDF.", "error");
+      // FITUR BARU: DOWNLOAD PESERTA UKT BERBENTUK PDF (DENGAN FILTER PERIODE)
+      const handleDownloadUKTPDF = (filterEventId) => {
+        // Tentukan data pendaftar berdasarkan filter
+        const regsToExport = filterEventId && filterEventId !== 'semua'
+          ? visibleRegistrations.filter(r => r.uktEventId === Number(filterEventId))
+          : visibleRegistrations;
+
+        if (regsToExport.length === 0) {
+          triggerToast("Tidak ada data pendaftar UKT untuk periode/event yang dipilih.", "error");
           return;
         }
 
+        // Info event yang dipilih (untuk judul PDF)
+        const selectedEvent = filterEventId && filterEventId !== 'semua'
+          ? events.find(ev => ev.id === Number(filterEventId))
+          : null;
+        const periodLabel = selectedEvent
+          ? `${selectedEvent.period} — ${selectedEvent.executionDate || '-'} — ${selectedEvent.title}`
+          : 'Semua Event UKT';
+
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
-        
-        // Desain Kop Surat Resmi
-        doc.setFontSize(13);
+        const pageW = doc.internal.pageSize.getWidth();
+        const pageH = doc.internal.pageSize.getHeight();
+        const marginL = 12, marginR = 12;
+        const contentW = pageW - marginL - marginR;
+
+        // ====== KOP SURAT ======
+        doc.setFontSize(12);
         doc.setFont("helvetica", "bold");
-        doc.setTextColor(185, 28, 28); // Warna Merah Red-700
-        doc.text("PENGURUS KABUPATEN TAEKWONDO INDONESIA (TI)", 105, 15, { align: "center" });
-        doc.text("KABUPATEN MUSI RAWAS", 105, 21, { align: "center" });
+        doc.setTextColor(185, 28, 28);
+        doc.text("PENGURUS KABUPATEN TAEKWONDO INDONESIA (TI)", pageW / 2, 14, { align: "center" });
+        doc.text("KABUPATEN MUSI RAWAS", pageW / 2, 20, { align: "center" });
         
-        doc.setFontSize(9);
+        doc.setFontSize(8.5);
         doc.setFont("helvetica", "normal");
-        doc.setTextColor(100, 116, 139); // Slate-500
-        doc.text("Sekretariat: Kab. Musi Rawas, Sumatera Selatan", 105, 26, { align: "center" });
+        doc.setTextColor(100, 116, 139);
+        doc.text("Sekretariat: Kab. Musi Rawas, Sumatera Selatan", pageW / 2, 25, { align: "center" });
         
-        // Garis Pembatas Kop
-        doc.setLineWidth(0.8);
-        doc.setDrawColor(30, 41, 59); // Slate-800
-        doc.line(15, 29, 195, 29);
+        doc.setLineWidth(0.7);
+        doc.setDrawColor(185, 28, 28);
+        doc.line(marginL, 28, pageW - marginR, 28);
+        doc.setLineWidth(0.25);
+        doc.setDrawColor(200, 200, 200);
+        doc.line(marginL, 29.5, pageW - marginR, 29.5);
         
+        // ====== JUDUL ======
         doc.setFontSize(11);
         doc.setFont("helvetica", "bold");
         doc.setTextColor(30, 41, 59);
-        doc.text("DAFTAR PESERTA UJI KENAIKAN TINGKAT (UKT)", 105, 36, { align: "center" });
+        doc.text("DAFTAR PESERTA UJI KENAIKAN TINGKAT (UKT)", pageW / 2, 35, { align: "center" });
 
-        // Menyusun Data untuk Tabel
-        const headers = [["No", "Nama Lengkap", "Tempat Lahir", "Tgl Lahir", "No. Reg", "Sabuk Sekarang", "Sabuk Diuji"]];
-        const tableData = visibleRegistrations.map((reg, index) => {
+        doc.setFontSize(8.5);
+        doc.setFont("helvetica", "italic");
+        doc.setTextColor(100, 100, 100);
+        doc.text(periodLabel, pageW / 2, 40, { align: "center" });
+
+        // ====== RINGKASAN ATAS ======
+        const totalAthletes = regsToExport.length;
+        const confirmedCount = regsToExport.filter(r => r.status === 'confirmed').length;
+        const paidCount = regsToExport.filter(r => r.paymentStatus === 'paid').length;
+
+        // Hitung unik club
+        const clubSet = {};
+        regsToExport.forEach(reg => {
           const athlete = users.find(u => u.id === reg.athleteId);
-          return [
-            index + 1,
-            athlete?.name || "-",
-            athlete?.placeOfBirth || "-",
-            athlete?.dateOfBirth || "-",
-            athlete?.regNo || "-",
-            athlete?.sabuk ? athlete.sabuk.split(' (')[0] : "Sabuk Putih",
-            reg.targetBelt ? reg.targetBelt.split(' (')[0] : "-"
-          ];
+          const club = athlete?.club || 'Tanpa Club';
+          clubSet[club] = (clubSet[club] || 0) + 1;
+        });
+        const uniqueClubs = Object.keys(clubSet).sort();
+
+        doc.setFontSize(7.5);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(80, 80, 80);
+        doc.text(`Peserta: ${totalAthletes} orang  |  Dikonfirmasi: ${confirmedCount}  |  Lunas: ${paidCount}  |  Unit/Club: ${uniqueClubs.length}`, pageW / 2, 45, { align: "center" });
+
+        let yPos = 50;
+
+        // ====== BAGIAN 1: RINCIAN PER UNIT/CLUB ======
+        if (yPos > 250) { doc.addPage(); yPos = 15; }
+
+        doc.setFillColor(185, 28, 28);
+        doc.roundedRect(marginL, yPos, contentW, 8, 1.5, 1.5, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(9);
+        doc.setFont("helvetica", "bold");
+        doc.text("RINGKASAN PESERTA PER UNIT/CLUB LATIHAN", marginL + 4, yPos + 5.5);
+        yPos += 11;
+
+        // Tabel ringkasan per club
+        const clubSummaryBody = uniqueClubs.map((club, idx) => {
+          const count = clubSet[club];
+          const regs = regsToExport.filter(reg => {
+            const a = users.find(u => u.id === reg.athleteId);
+            return (a?.club || 'Tanpa Club') === club;
+          });
+          const confirmed = regs.filter(r => r.status === 'confirmed').length;
+          const lunas = regs.filter(r => r.paymentStatus === 'paid').length;
+          // Daftar sabuk target unik di club ini
+          const beltsInClub = {};
+          regs.forEach(r => {
+            const b = r.targetBelt || 'Tanpa Sabuk';
+            beltsInClub[b] = (beltsInClub[b] || 0) + 1;
+          });
+          const beltDetail = Object.entries(beltsInClub)
+            .sort((a, b) => {
+              const ia = beltSequence.indexOf(a[0]);
+              const ib = beltSequence.indexOf(b[0]);
+              return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
+            })
+            .map(([b, c]) => `${b.split(' (')[0].replace('Sabuk ', '')}(${c})`)
+            .join(', ');
+          return [String(idx + 1), club, String(count), String(confirmed), String(lunas), beltDetail];
         });
 
         doc.autoTable({
-          head: headers,
-          body: tableData,
-          startY: 42,
-          theme: 'grid',
-          headStyles: { fillColor: [185, 28, 28], textColor: [255, 255, 255], fontStyle: 'bold' },
-          styles: { fontSize: 8.5, cellPadding: 2.5 },
+          startY: yPos,
+          head: [['No', 'Unit/Club', 'Jml Peserta', 'Konfirmasi', 'Lunas', 'Rincian Sabuk Target']],
+          body: clubSummaryBody,
+          margin: { left: marginL, right: marginR },
+          styles: { fontSize: 7, cellPadding: 2, font: 'helvetica', lineColor: [220, 220, 220], lineWidth: 0.2 },
+          headStyles: { fillColor: [185, 28, 28], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7, halign: 'center' },
+          alternateRowStyles: { fillColor: [252, 252, 252] },
           columnStyles: {
-            0: { cellWidth: 10, halign: 'center' },
-            4: { fontSize: 8 },
-            5: { fontStyle: 'italic' },
-            6: { fontStyle: 'bold' }
+            0: { halign: 'center', cellWidth: 8 },
+            1: { cellWidth: 30, fontStyle: 'bold' },
+            2: { halign: 'center', cellWidth: 18, fontStyle: 'bold' },
+            3: { halign: 'center', cellWidth: 18 },
+            4: { halign: 'center', cellWidth: 14 },
+            5: { cellWidth: 0, fontSize: 6.2 }
           }
         });
 
-        // Simpan dokumen PDF
-        doc.save(`Data_Peserta_UKT_Musi_Rawas_${new Date().toISOString().split('T')[0]}.pdf`);
-        triggerToast("Data Peserta UKT PDF Berhasil Diunduh!");
+        yPos = doc.lastAutoTable.finalY + 4;
+
+        // ====== BAGIAN 2: DAFTAR PESERTA LENGKAP PER SABUK ======
+        if (yPos > 250) { doc.addPage(); yPos = 15; }
+
+        doc.setFillColor(185, 28, 28);
+        doc.roundedRect(marginL, yPos, contentW, 8, 1.5, 1.5, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(9);
+        doc.setFont("helvetica", "bold");
+        doc.text("DAFTAR PESERTA LENGKAP PER SABUK TARGET", marginL + 4, yPos + 5.5);
+        yPos += 11;
+
+        // Kelompokkan berdasarkan sabuk target
+        const groupedByBelt = {};
+        beltSequence.forEach(b => groupedByBelt[b] = []);
+        const noBeltRegs = [];
+        regsToExport.forEach(reg => {
+          if (reg.targetBelt && groupedByBelt[reg.targetBelt]) {
+            groupedByBelt[reg.targetBelt].push(reg);
+          } else {
+            noBeltRegs.push(reg);
+          }
+        });
+        const activeBelts = beltSequence.filter(b => groupedByBelt[b] && groupedByBelt[b].length > 0);
+
+        let globalNo = 1;
+
+        activeBelts.forEach((belt) => {
+          const beltGroup = groupedByBelt[belt];
+
+          if (yPos > 260) { doc.addPage(); yPos = 15; }
+
+          // Header sabuk
+          doc.setFillColor(245, 245, 245);
+          doc.roundedRect(marginL, yPos, contentW, 7, 1, 1, 'F');
+          doc.setTextColor(30, 41, 59);
+          doc.setFontSize(8.5);
+          doc.setFont("helvetica", "bold");
+          doc.text(belt, marginL + 3, yPos + 5);
+          doc.setFontSize(7);
+          doc.setTextColor(120, 120, 120);
+          doc.text(`${beltGroup.length} peserta`, pageW - marginR - 3, yPos + 5, { align: 'right' });
+          yPos += 9;
+
+          // Tabel per sabuk — urutan: No, Nama, Tmp Lahir, Tgl Lahir, No. Reg, Sabuk, Unit/Club, Status, Bayar
+          const tableBody = beltGroup.map((reg) => {
+            const athlete = users.find(u => u.id === reg.athleteId);
+            return [
+              String(globalNo++),
+              athlete?.name || "-",
+              athlete?.placeOfBirth || "-",
+              athlete?.dateOfBirth || "-",
+              athlete?.regNo || "-",
+              athlete?.sabuk ? athlete.sabuk.split(' (')[0].replace('Sabuk ', '') : "Putih",
+              athlete?.club || "-",
+              reg.status === 'confirmed' ? 'Layak' : reg.status === 'rejected' ? 'Ditolak' : 'Menunggu',
+              reg.paymentStatus === 'paid' ? 'Lunas' : 'Pending'
+            ];
+          });
+
+          doc.autoTable({
+            startY: yPos,
+            head: [['No', 'Nama Lengkap', 'Tmp Lahir', 'Tgl Lahir', 'No. Reg', 'Sabuk', 'Unit/Club', 'Status', 'Bayar']],
+            body: tableBody,
+            margin: { left: marginL, right: marginR },
+            styles: { fontSize: 6.5, cellPadding: 1.5, font: 'helvetica', lineColor: [230, 230, 230], lineWidth: 0.15 },
+            headStyles: { fillColor: [185, 28, 28], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 6.5 },
+            alternateRowStyles: { fillColor: [249, 250, 251] },
+            columnStyles: {
+              0: { halign: 'center', cellWidth: 6 },
+              1: { cellWidth: 30 },
+              2: { cellWidth: 16, fontSize: 5.8 },
+              3: { cellWidth: 15, fontSize: 5.8 },
+              4: { cellWidth: 16, fontSize: 5.8 },
+              5: { cellWidth: 18, fontStyle: 'italic', fontSize: 5.8 },
+              6: { cellWidth: 20, fontStyle: 'bold', fontSize: 6 },
+              7: { halign: 'center', cellWidth: 13 },
+              8: { halign: 'center', cellWidth: 11 }
+            }
+          });
+
+          yPos = doc.lastAutoTable.finalY + 4;
+        });
+
+        // Kelompok tanpa sabuk
+        if (noBeltRegs.length > 0) {
+          if (yPos > 260) { doc.addPage(); yPos = 15; }
+          doc.setFillColor(255, 245, 245);
+          doc.roundedRect(marginL, yPos, contentW, 7, 1, 1, 'F');
+          doc.setTextColor(185, 28, 28);
+          doc.setFontSize(8.5);
+          doc.setFont("helvetica", "bold");
+          doc.text('Tanpa Sabuk Target', marginL + 3, yPos + 5);
+          yPos += 9;
+
+          const noBeltBody = noBeltRegs.map((reg) => {
+            const athlete = users.find(u => u.id === reg.athleteId);
+            return [
+              String(globalNo++),
+              athlete?.name || "-",
+              athlete?.placeOfBirth || "-",
+              athlete?.dateOfBirth || "-",
+              athlete?.regNo || "-",
+              '-',
+              athlete?.club || "-",
+              reg.status === 'confirmed' ? 'Layak' : 'Menunggu',
+              reg.paymentStatus === 'paid' ? 'Lunas' : 'Pending'
+            ];
+          });
+
+          doc.autoTable({
+            startY: yPos,
+            head: [['No', 'Nama Lengkap', 'Tmp Lahir', 'Tgl Lahir', 'No. Reg', 'Sabuk', 'Unit/Club', 'Status', 'Bayar']],
+            body: noBeltBody,
+            margin: { left: marginL, right: marginR },
+            styles: { fontSize: 6.5, cellPadding: 1.5, font: 'helvetica', lineColor: [230, 230, 230], lineWidth: 0.15 },
+            headStyles: { fillColor: [185, 28, 28], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 6.5 },
+            alternateRowStyles: { fillColor: [249, 250, 251] },
+            columnStyles: {
+              0: { halign: 'center', cellWidth: 6 },
+              1: { cellWidth: 30 },
+              2: { cellWidth: 16, fontSize: 5.8 },
+              3: { cellWidth: 15, fontSize: 5.8 },
+              4: { cellWidth: 16, fontSize: 5.8 },
+              5: { cellWidth: 18 },
+              6: { cellWidth: 20, fontStyle: 'bold', fontSize: 6 },
+              7: { halign: 'center', cellWidth: 13 },
+              8: { halign: 'center', cellWidth: 11 }
+            }
+          });
+          yPos = doc.lastAutoTable.finalY + 4;
+        }
+
+        // ====== TANDA TANGAN ======
+        if (yPos > 245) { doc.addPage(); yPos = 15; }
+        yPos += 10;
+        doc.setFontSize(8);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(80, 80, 80);
+        doc.text('Musi Rawas, ' + new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }), pageW - marginR, yPos, { align: 'right' });
+        yPos += 5;
+        doc.text('Ketua Pengkab TI Musi Rawas', pageW - marginR, yPos, { align: 'right' });
+
+        // ====== FOOTER ======
+        doc.setFontSize(6.5);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(170, 170, 170);
+        const footerText = `Dicetak oleh Sistem Informasi TI Musi Rawas | ${new Date().toLocaleDateString('id-ID')} | Periode: ${periodLabel}`;
+        doc.text(footerText, pageW / 2, pageH - 5, { align: 'center' });
+
+        // ====== SIMPAN ======
+        const safeName = selectedEvent
+          ? `UKT_${selectedEvent.period.replace(/\s+/g, '_')}_${selectedEvent.executionDate || 'no_date'}`
+          : 'Semua_UKT';
+        doc.save(`Data_Peserta_${safeName}_Musi_Rawas_${new Date().toISOString().split('T')[0]}.pdf`);
+        triggerToast(`PDF Peserta UKT (${periodLabel}) berhasil diunduh!`);
+      };
+
+      // FITUR: FORMULIR PENILAIAN MANUAL UKT (LANSKAP, KOLOM 10 KOMPONEN)
+      const handleDownloadFormulirPenilaianPDF = (filterEventId) => {
+        // Tentukan data pendaftar berdasarkan filter — hanya yang layak & lunas
+        const regsToExport = (filterEventId && filterEventId !== 'semua'
+          ? visibleRegistrations.filter(r => r.uktEventId === Number(filterEventId))
+          : visibleRegistrations
+        ).filter(r => r.status === 'confirmed' && r.paymentStatus === 'paid');
+
+        if (regsToExport.length === 0) {
+          triggerToast("Tidak ada peserta UKT yang layak & lunas untuk periode/event yang dipilih.", "error");
+          return;
+        }
+
+        const selectedEvent = filterEventId && filterEventId !== 'semua'
+          ? events.find(ev => ev.id === Number(filterEventId))
+          : null;
+        const periodLabel = selectedEvent
+          ? `${selectedEvent.period} — ${selectedEvent.executionDate || '-'}`
+          : 'Semua Event UKT';
+        const periodName = selectedEvent ? selectedEvent.period : 'Periode I';
+        const execDate = selectedEvent ? selectedEvent.executionDate : new Date().toLocaleDateString('id-ID');
+
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+        const pageW = doc.internal.pageSize.getWidth();
+        const pageH = doc.internal.pageSize.getHeight();
+        const mL = 10, mR = 10;
+        const cW = pageW - mL - mR;
+
+        // ====== KOP SURAT ======
+        doc.setFontSize(13);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(185, 28, 28);
+        doc.text("PENGURUS KABUPATEN TAEKWONDO INDONESIA (TI)", pageW / 2, 10, { align: "center" });
+        doc.text("KABUPATEN MUSI RAWAS", pageW / 2, 16, { align: "center" });
+        doc.setFontSize(8);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(100, 116, 139);
+        doc.text("Sekretariat: Kab. Musi Rawas, Sumatera Selatan", pageW / 2, 20.5, { align: "center" });
+        doc.setLineWidth(0.7);
+        doc.setDrawColor(185, 28, 28);
+        doc.line(mL, 23, pageW - mR, 23);
+        doc.setLineWidth(0.2);
+        doc.setDrawColor(200, 200, 200);
+        doc.line(mL, 24, pageW - mR, 24);
+
+        // ====== JUDUL ======
+        doc.setFontSize(12);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(30, 41, 59);
+        doc.text("FORMULIR PENILAIAN MANUAL", pageW / 2, 30, { align: "center" });
+        doc.setFontSize(10);
+        doc.setTextColor(185, 28, 28);
+        doc.text("UJI KENAIKAN TINGKAT (UKT)", pageW / 2, 35.5, { align: "center" });
+
+        // ====== INFO BOX ======
+        doc.setFillColor(248, 250, 252);
+        doc.setDrawColor(203, 213, 225);
+        doc.roundedRect(mL, 38.5, cW, 10, 1.5, 1.5, 'FD');
+        doc.setFontSize(7);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(30, 41, 59);
+        doc.text("Event:", mL + 3, 42.5);
+        doc.text("Periode:", mL + 80, 42.5);
+        doc.text("Tgl Pelaksanaan:", mL + 125, 42.5);
+        doc.text("Jumlah Peserta:", mL + 185, 42.5);
+        doc.text("Skala Nilai:", mL + 230, 42.5);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(80, 80, 80);
+        doc.text(selectedEvent ? selectedEvent.title : 'Semua Event UKT', mL + 18, 42.5);
+        doc.text(periodName, mL + 100, 42.5);
+        doc.text(execDate, mL + 155, 42.5);
+        doc.text(regsToExport.length + ' orang', mL + 215, 42.5);
+        doc.text('1 - 10 per komponen', mL + 247, 42.5);
+        // Baris 2 info
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(30, 41, 59);
+        doc.text("Lokasi:", mL + 3, 46.5);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(80, 80, 80);
+        doc.text("Dojang Pusat TI Musi Rawas", mL + 18, 46.5);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(30, 41, 59);
+        doc.text("Kriteria Kelulusan:", mL + 125, 46.5);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(80, 80, 80);
+        doc.text('Total Skor >= 70 (LULUS)  |  < 70 (TIDAK LULUS)', mL + 160, 46.5);
+
+        let yPos = 52;
+
+        // ====== KELOMPOKKAN PER SABUK TARGET ======
+        const groupedByBelt = {};
+        beltSequence.forEach(b => groupedByBelt[b] = []);
+        const noBeltRegs = [];
+        regsToExport.forEach(reg => {
+          if (reg.targetBelt && groupedByBelt[reg.targetBelt]) {
+            groupedByBelt[reg.targetBelt].push(reg);
+          } else {
+            noBeltRegs.push(reg);
+          }
+        });
+        const activeBelts = beltSequence.filter(b => groupedByBelt[b] && groupedByBelt[b].length > 0);
+
+        let globalNo = 1;
+
+        // Komponen penilaian
+        const compHeaders = ['Pukulan\n(Jireugi)', 'Tangkisan\n(Makki)', 'Tendangan\n(Chagi)', 'Kuda-Kuda\n(Seogi)', 'Jurus\n(Taegeuk)', 'Kyorugi', 'Fisik &\nStamina', 'Penget.\nTaekwondo', 'Kyukpa', 'Mental &\nAttitude'];
+        const compKeys = ['pukulan','tangkisan','tendangan','kudaKuda','taegeuk','kyorugi','fisik','pengetahuan','kyukpa','mental'];
+
+        activeBelts.forEach((belt) => {
+          const beltGroup = groupedByBelt[belt];
+
+          if (yPos > 175) { doc.addPage(); yPos = 15; }
+
+          // Header sabuk
+          doc.setFillColor(71, 85, 105);
+          doc.roundedRect(mL, yPos, cW, 7, 1.5, 1.5, 'F');
+          doc.setTextColor(255, 255, 255);
+          doc.setFontSize(8.5);
+          doc.setFont("helvetica", "bold");
+          doc.text('Sabuk Target: ' + belt, mL + 4, yPos + 4.8);
+          doc.setFontSize(7);
+          doc.text(beltGroup.length + ' peserta', pageW - mR - 4, yPos + 4.8, { align: 'right' });
+          yPos += 8;
+
+          // Tabel penilaian
+          const headRow = ['No', 'Nama Peserta', 'Club /\nDojang', 'L/P', ...compHeaders, 'Total\nSkor', 'Status', 'TTD\nPenguji'];
+          const bodyRows = beltGroup.map((reg) => {
+            const athlete = users.find(u => u.id === reg.athleteId);
+            const genderShort = athlete?.gender === 'Laki-laki' ? 'L' : 'P';
+            // Isi nilai dari raport jika sudah ada, kosongkan jika belum
+            const raportData = reg.raport || {};
+            const compValues = compKeys.map(k => raportData[k] != null ? String(raportData[k]) : '');
+            const totalScore = raportData.totalScore != null ? String(raportData.totalScore) : '';
+            const passStatus = reg.passStatus || '';
+            return [
+              String(globalNo++),
+              athlete?.name || "-",
+              athlete?.club || "-",
+              genderShort,
+              ...compValues,
+              totalScore,
+              passStatus,
+              ''
+            ];
+          });
+
+          doc.autoTable({
+            startY: yPos,
+            head: [headRow],
+            body: bodyRows,
+            margin: { left: mL, right: mR },
+            styles: { fontSize: 6.5, cellPadding: 1.8, font: 'helvetica', lineColor: [200, 210, 220], lineWidth: 0.15, valign: 'middle' },
+            headStyles: { fillColor: [78, 99, 109], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 5.8, halign: 'center', cellPadding: 2 },
+            alternateRowStyles: { fillColor: [246, 248, 250] },
+            columnStyles: {
+              0: { halign: 'center', cellWidth: 8 },
+              1: { cellWidth: 38, fontStyle: 'bold', fontSize: 6.5 },
+              2: { cellWidth: 28 },
+              3: { halign: 'center', cellWidth: 9 },
+              // 10 komponen penilaian (index 4-13)
+              4: { halign: 'center', cellWidth: 18 },
+              5: { halign: 'center', cellWidth: 18 },
+              6: { halign: 'center', cellWidth: 18 },
+              7: { halign: 'center', cellWidth: 18 },
+              8: { halign: 'center', cellWidth: 18 },
+              9: { halign: 'center', cellWidth: 18 },
+              10: { halign: 'center', cellWidth: 18 },
+              11: { halign: 'center', cellWidth: 18 },
+              12: { halign: 'center', cellWidth: 18 },
+              13: { halign: 'center', cellWidth: 18 },
+              // Total, Status, TTD (index 14-16)
+              14: { halign: 'center', cellWidth: 14, fontStyle: 'bold' },
+              15: { halign: 'center', cellWidth: 16, fontStyle: 'bold' },
+              16: { cellWidth: 22 }
+            }
+          });
+
+          yPos = doc.lastAutoTable.finalY + 4;
+        });
+
+        // Peserta tanpa sabuk target
+        if (noBeltRegs.length > 0) {
+          if (yPos > 175) { doc.addPage(); yPos = 15; }
+          doc.setFillColor(245, 245, 245);
+          doc.roundedRect(mL, yPos, cW, 7, 1, 1, 'F');
+          doc.setTextColor(185, 28, 28);
+          doc.setFontSize(8.5);
+          doc.setFont("helvetica", "bold");
+          doc.text('Tanpa Sabuk Target', mL + 4, yPos + 5);
+          yPos += 8;
+
+          const noBeltBody = noBeltRegs.map((reg) => {
+            const athlete = users.find(u => u.id === reg.athleteId);
+            const genderShort = athlete?.gender === 'Laki-laki' ? 'L' : 'P';
+            const raportData = reg.raport || {};
+            const compValues = compKeys.map(k => raportData[k] != null ? String(raportData[k]) : '');
+            const totalScore = raportData.totalScore != null ? String(raportData.totalScore) : '';
+            const passStatus = reg.passStatus || '';
+            return [String(globalNo++), athlete?.name || "-", athlete?.club || "-", genderShort, ...compValues, totalScore, passStatus, ''];
+          });
+
+          const headRow = ['No', 'Nama Peserta', 'Club /\nDojang', 'L/P', ...compHeaders, 'Total\nSkor', 'Status', 'TTD\nPenguji'];
+          doc.autoTable({
+            startY: yPos,
+            head: [headRow],
+            body: noBeltBody,
+            margin: { left: mL, right: mR },
+            styles: { fontSize: 6.5, cellPadding: 1.8, font: 'helvetica', lineColor: [200, 210, 220], lineWidth: 0.15, valign: 'middle' },
+            headStyles: { fillColor: [78, 99, 109], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 5.8, halign: 'center', cellPadding: 2 },
+            alternateRowStyles: { fillColor: [246, 248, 250] },
+            columnStyles: {
+              0: { halign: 'center', cellWidth: 8 },
+              1: { cellWidth: 38, fontStyle: 'bold', fontSize: 6.5 },
+              2: { cellWidth: 28 },
+              3: { halign: 'center', cellWidth: 9 },
+              4: { halign: 'center', cellWidth: 18 }, 5: { halign: 'center', cellWidth: 18 }, 6: { halign: 'center', cellWidth: 18 },
+              7: { halign: 'center', cellWidth: 18 }, 8: { halign: 'center', cellWidth: 18 }, 9: { halign: 'center', cellWidth: 18 },
+              10: { halign: 'center', cellWidth: 18 }, 11: { halign: 'center', cellWidth: 18 }, 12: { halign: 'center', cellWidth: 18 },
+              13: { halign: 'center', cellWidth: 18 },
+              14: { halign: 'center', cellWidth: 14, fontStyle: 'bold' },
+              15: { halign: 'center', cellWidth: 16, fontStyle: 'bold' },
+              16: { cellWidth: 22 }
+            }
+          });
+          yPos = doc.lastAutoTable.finalY + 4;
+        }
+
+        // ====== KETERANGAN KOMPONEN ======
+        if (yPos > 170) { doc.addPage(); yPos = 15; }
+        yPos += 3;
+        doc.setFontSize(7);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(30, 41, 59);
+        doc.text('Keterangan Komponen Penilaian:', mL + 2, yPos);
+        yPos += 4;
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(80, 80, 80);
+        doc.setFontSize(6);
+        const legends = [
+          '1. Pukulan (Jireugi)', '2. Tangkisan (Makki)', '3. Tendangan (Chagi)', '4. Sikap Kuda-Kuda (Seogi)', '5. Jurus (Taegeuk/Poomsae)',
+          '6. Pertarungan (Kyorugi)', '7. Kekuatan Fisik & Stamina', '8. Pengetahuan Umum Taekwondo', '9. Pemecahan Papan (Kyukpa)', '10. Kerapian & Mental Spiritual (Attitude)'
+        ];
+        doc.text(legends.slice(0, 5).join('   |   '), mL + 2, yPos);
+        yPos += 3.5;
+        doc.text(legends.slice(5).join('   |   '), mL + 2, yPos);
+
+        // ====== TANDA TANGAN ======
+        yPos += 12;
+        if (yPos > 180) { doc.addPage(); yPos = 15; }
+        doc.setFontSize(7.5);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(80, 80, 80);
+        doc.text('Musi Rawas, ' + new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }), pageW / 2 - 50, yPos, { align: 'center' });
+        doc.text('Musi Rawas, ' + new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }), pageW / 2 + 50, yPos, { align: 'center' });
+        yPos += 15;
+        doc.setLineWidth(0.3);
+        doc.setDrawColor(80, 80, 80);
+        doc.line(pageW / 2 - 75, yPos, pageW / 2 - 25, yPos);
+        doc.line(pageW / 2 + 25, yPos, pageW / 2 + 75, yPos);
+        yPos += 4;
+        doc.setFont("helvetica", "bold");
+        doc.text('Ketua Panitia UKT', pageW / 2 - 50, yPos, { align: 'center' });
+        doc.text('Penguji / Examiner', pageW / 2 + 50, yPos, { align: 'center' });
+
+        // ====== FOOTER ======
+        doc.setFontSize(5.5);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(170, 170, 170);
+        const footerText = `Formulir Penilaian Manual UKT | TI Musi Rawas | ${periodLabel} | Dicetak: ${new Date().toLocaleDateString('id-ID')}`;
+        doc.text(footerText, pageW / 2, pageH - 4, { align: 'center' });
+
+        // ====== SIMPAN ======
+        const safeName = selectedEvent
+          ? `Formulir_Penilaian_${selectedEvent.period.replace(/\s+/g, '_')}_${selectedEvent.executionDate || 'no_date'}`
+          : 'Formulir_Penilaian_Semua_UKT';
+        doc.save(`${safeName}_Musi_Rawas_${new Date().toISOString().split('T')[0]}.pdf`);
+        triggerToast(`Formulir Penilaian Manual UKT (${periodLabel}) berhasil diunduh!`);
       };
 
       const handleUploadUKTData = (e) => {
@@ -2891,7 +3413,11 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
 
       const uktBeltCounts = {};
       beltSequence.forEach(b => uktBeltCounts[b] = 0);
-      visibleRegistrations.forEach(reg => {
+      // Gunakan data yang sudah difilter berdasarkan uktEventFilter untuk statistik
+      const filterAwareRegs = uktEventFilter !== 'semua'
+        ? visibleRegistrations.filter(r => r.uktEventId === Number(uktEventFilter))
+        : visibleRegistrations;
+      filterAwareRegs.forEach(reg => {
           if (uktBeltCounts[reg.targetBelt] !== undefined) {
               uktBeltCounts[reg.targetBelt]++;
           }
@@ -3097,12 +3623,8 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
             <div className="space-y-4">
               <div className="flex flex-col gap-3 bg-white p-4 rounded-3xl shadow-sm border border-gray-100">
                 <div className="flex justify-between items-center w-full">
-                  <span className="text-[11px] font-bold text-gray-700 pl-1 whitespace-nowrap">Total Pendaftar: {visibleRegistrations.length}</span>
+                  <span className="text-[11px] font-bold text-gray-700 pl-1 whitespace-nowrap">Total Pendaftar: {filterAwareRegs.length}</span>
                   <div className="flex flex-wrap gap-1.5 justify-end">
-                    {/* TOMBOL DOWNLOAD PESERTA PDF */}
-                    <button onClick={handleDownloadUKTPDF} className="bg-red-700 hover:bg-red-800 transition text-white px-2.5 py-2 rounded-xl text-[9px] font-bold shadow-sm flex items-center gap-1">
-                      <Icon name="FileText" className="w-3.5 h-3.5 text-white" /> Unduh PDF Peserta
-                    </button>
                     <button onClick={handleDownloadUKTData} className="bg-blue-600 hover:bg-blue-700 transition text-white px-2.5 py-2 rounded-xl text-[9px] font-bold shadow-sm flex items-center gap-1">
                       <Icon name="Download" className="w-3.5 h-3.5 text-white" /> CSV
                     </button>
@@ -3113,6 +3635,86 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
                   </div>
                 </div>
                 
+                {/* FILTER PERIODE UKT + TOMBOL UNDUH PDF */}
+                <div className="bg-gradient-to-br from-red-50 via-white to-amber-50 border border-red-200/80 rounded-3xl p-4 space-y-3.5 shadow-sm">
+                  {/* Header */}
+                  <div className="flex items-center gap-2 pb-2 border-b border-red-100">
+                    <div className="w-7 h-7 bg-red-100 rounded-lg flex items-center justify-center shrink-0">
+                      <Icon name="Filter" className="w-4 h-4 text-red-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <span className="text-[11px] font-black text-red-800 uppercase tracking-wide block leading-tight">Filter & Unduh PDF</span>
+                      <span className="text-[9px] font-semibold text-red-500/80 block mt-0.5">Peserta UKT Berdasarkan Periode Tanggal Pelaksanaan</span>
+                    </div>
+                  </div>
+
+                  {/* Baris 1: Label + Dropdown */}
+                  <div className="space-y-1.5">
+                    <label className="text-[9px] font-bold text-gray-500 uppercase tracking-wider pl-1">Pilih Periode UKT</label>
+                    <select
+                      value={uktEventFilter}
+                      onChange={e => setUktEventFilter(e.target.value)}
+                      className="w-full text-xs p-3 bg-white border border-red-200/80 rounded-xl font-semibold text-gray-700 focus:ring-2 focus:ring-red-400 focus:border-red-400 transition shadow-sm cursor-pointer"
+                    >
+                      <option value="semua">📋  Semua Event UKT</option>
+                      {events.map(ev => (
+                        <option key={ev.id} value={String(ev.id)}>📅  {ev.period} — Tgl Pelaksanaan: {ev.executionDate || '-'} — {ev.title}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Baris 2: Info peserta (jika periode dipilih) */}
+                  {uktEventFilter !== 'semua' && (() => {
+                    const selEv = events.find(ev => ev.id === Number(uktEventFilter));
+                    const filteredCount = selEv ? visibleRegistrations.filter(r => r.uktEventId === selEv.id).length : 0;
+                    const confirmedCount = selEv ? visibleRegistrations.filter(r => r.uktEventId === selEv.id && r.status === 'confirmed').length : 0;
+                    const paidCount = selEv ? visibleRegistrations.filter(r => r.uktEventId === selEv.id && r.paymentStatus === 'paid').length : 0;
+                    return (
+                      <div className="bg-white rounded-xl border border-red-100/80 p-3 space-y-2 shadow-sm">
+                        <div className="flex items-center gap-2">
+                          <Icon name="Users" className="w-4 h-4 text-red-500" />
+                          <span className="text-[10px] font-bold text-red-800 uppercase tracking-wider">Ringkasan Peserta</span>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className="bg-red-50 rounded-lg p-2 text-center border border-red-100">
+                            <div className="text-base font-black text-red-700 leading-none">{filteredCount}</div>
+                            <div className="text-[8px] font-bold text-red-400 uppercase mt-1">Terdaftar</div>
+                          </div>
+                          <div className="bg-green-50 rounded-lg p-2 text-center border border-green-100">
+                            <div className="text-base font-black text-green-600 leading-none">{confirmedCount}</div>
+                            <div className="text-[8px] font-bold text-green-400 uppercase mt-1">Dikonfirmasi</div>
+                          </div>
+                          <div className="bg-blue-50 rounded-lg p-2 text-center border border-blue-100">
+                            <div className="text-base font-black text-blue-600 leading-none">{paidCount}</div>
+                            <div className="text-[8px] font-bold text-blue-400 uppercase mt-1">Lunas</div>
+                          </div>
+                        </div>
+                        <div className="text-[9px] text-gray-500 text-center pt-1">
+                          Periode: <b className="text-red-700">{selEv?.period}</b> &middot; Tanggal Pelaksanaan: <b className="text-red-700">{selEv?.executionDate || '-'}</b>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Baris 3: Tombol Unduh */}
+                  <div className="grid grid-cols-1 gap-2">
+                    <button
+                      onClick={() => handleDownloadUKTPDF(uktEventFilter)}
+                      className="w-full bg-gradient-to-r from-red-700 to-red-800 hover:from-red-800 hover:to-red-900 active:scale-[0.98] text-white py-3 rounded-xl text-xs font-bold shadow-md flex items-center justify-center gap-2 transition-all duration-200"
+                    >
+                      <Icon name="FileText" className="w-4 h-4 text-white" />
+                      {uktEventFilter === 'semua' ? 'Unduh PDF Semua Peserta UKT' : 'Unduh PDF Peserta Periode Ini'}
+                    </button>
+                    <button
+                      onClick={() => handleDownloadFormulirPenilaianPDF(uktEventFilter)}
+                      className="w-full bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 active:scale-[0.98] text-white py-3 rounded-xl text-xs font-bold shadow-md flex items-center justify-center gap-2 transition-all duration-200"
+                    >
+                      <Icon name="ClipboardList" className="w-4 h-4 text-white" />
+                      {uktEventFilter === 'semua' ? 'PDF Formulir Penilaian Manual UKT' : 'PDF Formulir Penilaian — Periode Ini'}
+                    </button>
+                  </div>
+                </div>
+
                 {/* KOLOM PENCARIAN DIPERBESAR */}
                 <div className="relative w-full">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -3134,29 +3736,39 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
                       <h3 className="font-extrabold text-xs text-gray-800 uppercase flex items-center gap-1.5">
                           <Icon name="PieChart" className="w-4 h-4 text-red-600" /> Statistik Target Sabuk UKT
                       </h3>
+                      {uktEventFilter !== 'semua' && (() => {
+                        const selEv = events.find(ev => ev.id === Number(uktEventFilter));
+                        return <span className="text-[9px] font-bold text-red-500 bg-red-50 px-2 py-0.5 rounded-lg border border-red-100">{selEv?.period} — {selEv?.executionDate || '-'}</span>;
+                      })()}
                   </div>
                   {activeUktBelts.length > 0 ? (
-                    <div className="grid grid-cols-2 gap-2">
-                        {activeUktBelts.map(belt => {
-                            const count = uktBeltCounts[belt];
-                            return (
-                                <div key={belt} className="p-2.5 rounded-xl border border-red-200 bg-red-50/20 shadow-sm flex justify-between items-center transition-all">
-                                    <div className="flex items-center gap-1.5 truncate pr-2">
-                                        <div className={`w-2 h-2 rounded-full shrink-0 ${getBeltColorDot(belt)}`}></div>
-                                        <span className="text-[10px] font-bold text-gray-700 truncate" title={belt}>{belt.split(' (')[0].replace('Sabuk ', '')}</span>
-                                    </div>
-                                    <span className="text-xs font-black text-red-700 bg-white px-2 py-0.5 rounded-lg border border-red-100">{count}</span>
-                                </div>
-                            )
-                        })}
-                    </div>
+                    <>
+                      <div className="grid grid-cols-2 gap-2">
+                          {activeUktBelts.map(belt => {
+                              const count = uktBeltCounts[belt];
+                              return (
+                                  <div key={belt} className="p-2.5 rounded-xl border border-red-200 bg-red-50/20 shadow-sm flex justify-between items-center transition-all">
+                                      <div className="flex items-center gap-1.5 truncate pr-2">
+                                          <div className={`w-2 h-2 rounded-full shrink-0 ${getBeltColorDot(belt)}`}></div>
+                                          <span className="text-[10px] font-bold text-gray-700 truncate" title={belt}>{belt.split(' (')[0].replace('Sabuk ', '')}</span>
+                                      </div>
+                                      <span className="text-xs font-black text-red-700 bg-white px-2 py-0.5 rounded-lg border border-red-100">{count}</span>
+                                  </div>
+                              )
+                          })}
+                      </div>
+                      <div className="mt-3 pt-2 border-t border-gray-100 flex justify-between items-center text-[10px]">
+                        <span className="font-bold text-gray-500 uppercase">Total Peserta</span>
+                        <span className="font-black text-red-700 text-sm">{filterAwareRegs.length} orang</span>
+                      </div>
+                    </>
                   ) : (
-                    <p className="text-xs text-center text-gray-400 italic py-4">Belum ada pendaftar UKT aktif.</p>
+                    <p className="text-xs text-center text-gray-400 italic py-4">Belum ada pendaftar UKT aktif{uktEventFilter !== 'semua' ? ' pada periode ini' : ''}.</p>
                   )}
               </div>
 
               <div className="space-y-3">
-                {visibleRegistrations.map(reg => {
+                {filterAwareRegs.map(reg => {
                   const athlete = users.find(u => u.id === reg.athleteId);
                   const event = events.find(e => e.id === reg.uktEventId);
                   if (!athlete || !event) return null;
@@ -4035,8 +4647,9 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
       );
     }
 
-    function PointsView({ user, points, addPoint, updatePoint, deletePoint, users, triggerToast }) {
-      const [pointTab, setPointTab] = useState(user.role === 'atlet' ? 'poinku' : 'leaderboard');
+    function PointsView({ user, points, addPoint, updatePoint, deletePoint, users, clubs, triggerToast }) {
+      const isAtletOrPelatih = user.role === 'atlet' || user.role === 'pelatih';
+      const [pointTab, setPointTab] = useState(user.role === 'atlet' ? 'poinku' : user.role === 'pelatih' ? 'clubSaya' : 'leaderboard');
       const [searchQuery, setSearchQuery] = useState('');
       const [showAddPoint, setShowAddPoint] = useState(false); const [athleteId, setAthleteId] = useState(''); const [eventName, setEventName] = useState(''); const [category, setCategory] = useState('Kyorugi'); const [division, setDivision] = useState('Prestasi'); const [medal, setMedal] = useState('Emas'); const [level, setLevel] = useState('Kabupaten'); const [leaderboardFilter, setLeaderboardFilter] = useState('Semua');
       const [athleteSearch, setAthleteSearch] = useState('');
@@ -4052,8 +4665,47 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
       // State baru untuk fitur Lihat Riwayat
       const [viewingHistoryAthleteId, setViewingHistoryAthleteId] = useState(null);
 
+      // State untuk fitur lihat poin club
+      const [clubSayaFilter, setClubSayaFilter] = useState('Semua');
+      const [clubSayaSearch, setClubSayaSearch] = useState('');
+      const [semuaClubFilter, setSemuaClubFilter] = useState('Semua');
+      const [semuaClubSearch, setSemuaClubSearch] = useState('');
+      const [semuaClubClubFilter, setSemuaClubClubFilter] = useState('Semua');
+
       const athletes = users.filter(u => u.role === 'atlet' && (user.role === 'super_admin' || u.club === user.club));
-      
+
+      const calculateTotal = (atId, filterType) => points.filter(p => p.athleteId === atId && (filterType === 'Semua' || p.category === filterType)).reduce((sum, p) => sum + p.points, 0);
+
+      // Data atlet untuk fitur Club Saya (atlet & pelatih lihat seluruh atlet dalam 1 club)
+      const clubSayaAthletes = users.filter(u => u.role === 'atlet' && u.club === user.club);
+      const clubSayaSorted = [...clubSayaAthletes].sort((a, b) => calculateTotal(b.id, clubSayaFilter) - calculateTotal(a.id, clubSayaFilter));
+      const clubSayaSearched = clubSayaSorted.filter(a => {
+        if (!clubSayaSearch) return true;
+        const q = clubSayaSearch.toLowerCase();
+        return (a.name || '').toLowerCase().includes(q) || (a.sabuk || '').toLowerCase().includes(q);
+      });
+      const clubSayaTotalPoints = clubSayaAthletes.reduce((sum, a) => sum + calculateTotal(a.id, clubSayaFilter), 0);
+
+      // Data atlet untuk fitur Semua Club (atlet & pelatih lihat seluruh atlet dari beberapa club)
+      const semuaClubAthletes = users.filter(u => u.role === 'atlet');
+      const semuaClubSorted = [...semuaClubAthletes]
+        .filter(a => semuaClubClubFilter === 'Semua' || a.club === semuaClubClubFilter)
+        .sort((a, b) => calculateTotal(b.id, semuaClubFilter) - calculateTotal(a.id, semuaClubFilter));
+      const semuaClubSearched = semuaClubSorted.filter(a => {
+        if (!semuaClubSearch) return true;
+        const q = semuaClubSearch.toLowerCase();
+        return (a.name || '').toLowerCase().includes(q) || (a.club || '').toLowerCase().includes(q) || (a.sabuk || '').toLowerCase().includes(q);
+      });
+      const semuaClubTotalPoints = semuaClubAthletes.reduce((sum, a) => sum + calculateTotal(a.id, semuaClubFilter), 0);
+      // Club unik untuk filter di Semua Club
+      const uniqueClubs = [...new Set(semuaClubAthletes.map(a => a.club).filter(Boolean))].sort();
+      // Statistik per club
+      const clubStats = uniqueClubs.map(clubName => {
+        const clubAtlets = semuaClubAthletes.filter(a => a.club === clubName);
+        const totalPoin = clubAtlets.reduce((sum, a) => sum + calculateTotal(a.id, semuaClubFilter), 0);
+        return { name: clubName, atletCount: clubAtlets.length, totalPoin };
+      }).sort((a, b) => b.totalPoin - a.totalPoin);
+
       const filteredAthletes = athletes.filter(a => {
         if (!athleteSearch) return true;
         const q = athleteSearch.toLowerCase();
@@ -4091,8 +4743,6 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
 
         return 0; 
       };
-
-      const calculateTotal = (atId, filterType) => points.filter(p => p.athleteId === atId && (filterType === 'Semua' || p.category === filterType)).reduce((sum, p) => sum + p.points, 0);
       
       const handleAddPointSubmit = (e) => { 
         e.preventDefault(); 
@@ -4489,11 +5139,19 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
         <div className="space-y-4">
           <div className="flex items-center gap-2 border-b pb-2"><Icon name="Award" className="w-5 h-5 text-red-600" /><h2 className="text-lg font-black text-gray-800">Sistem Poin</h2></div>
           
-          <div className="flex bg-gray-200 p-1 rounded-xl no-print">
+          <div className="flex bg-gray-200 p-1 rounded-xl no-print overflow-x-auto gap-1">
             {user.role === 'atlet' && (
-              <button onClick={() => {setPointTab('poinku'); setViewingHistoryAthleteId(null);}} className={`flex-1 py-1.5 text-xs rounded-lg font-bold transition-all ${pointTab === 'poinku' ? 'bg-white text-red-700 shadow-sm' : 'text-gray-500'}`}>Poin Saya</button>
+              <button onClick={() => {setPointTab('poinku'); setViewingHistoryAthleteId(null);}} className={`shrink-0 py-1.5 px-2 text-[10px] rounded-lg font-bold transition-all ${pointTab === 'poinku' ? 'bg-white text-red-700 shadow-sm' : 'text-gray-500'}`}>Poin Saya</button>
             )}
-            <button onClick={() => {setPointTab('leaderboard'); setViewingHistoryAthleteId(null);}} className={`flex-1 py-1.5 text-xs rounded-lg font-bold transition-all ${pointTab === 'leaderboard' && !viewingHistoryAthleteId ? 'bg-white text-red-700 shadow-sm' : 'text-gray-500'}`}>Leaderboard</button>
+            {isAtletOrPelatih && (
+              <button onClick={() => {setPointTab('clubSaya'); setViewingHistoryAthleteId(null);}} className={`shrink-0 py-1.5 px-2 text-[10px] rounded-lg font-bold transition-all ${pointTab === 'clubSaya' ? 'bg-white text-red-700 shadow-sm' : 'text-gray-500'}`}>Club Saya</button>
+            )}
+            {isAtletOrPelatih && (
+              <button onClick={() => {setPointTab('semuaClub'); setViewingHistoryAthleteId(null);}} className={`shrink-0 py-1.5 px-2 text-[10px] rounded-lg font-bold transition-all ${pointTab === 'semuaClub' ? 'bg-white text-red-700 shadow-sm' : 'text-gray-500'}`}>Semua Club</button>
+            )}
+            {!isAtletOrPelatih && (
+              <button onClick={() => {setPointTab('leaderboard'); setViewingHistoryAthleteId(null);}} className={`flex-1 py-1.5 text-xs rounded-lg font-bold transition-all ${pointTab === 'leaderboard' && !viewingHistoryAthleteId ? 'bg-white text-red-700 shadow-sm' : 'text-gray-500'}`}>Leaderboard</button>
+            )}
           </div>
 
           {/* VIEW: POINKU (Hanya untuk Atlet) */}
@@ -4536,6 +5194,213 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
                 </div>
              </div>
           )}
+
+          {/* ===== VIEW: CLUB SAYA (Atlet & Pelatih - lihat poin seluruh atlet dalam 1 club) ===== */}
+          {pointTab === 'clubSaya' && isAtletOrPelatih && (
+            <div className="space-y-4 animate-fade-in">
+              {/* Header Card Club Saya */}
+              <div className="bg-gradient-to-br from-emerald-600 to-emerald-800 rounded-3xl p-4 text-white shadow-xl relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-28 h-28 bg-white opacity-5 rounded-full -mr-8 -mt-8 blur-xl"></div>
+                <div className="relative z-10">
+                  <div className="text-[10px] text-emerald-200 uppercase font-bold tracking-wider">Dojang / Club</div>
+                  <div className="text-xl font-black mt-0.5">{user.club}</div>
+                  <div className="flex gap-4 mt-3">
+                    <div className="bg-white/15 rounded-xl px-3 py-2 text-center">
+                      <div className="text-[9px] text-emerald-200 font-bold uppercase">Jumlah Atlet</div>
+                      <div className="text-lg font-black">{clubSayaAthletes.length}</div>
+                    </div>
+                    <div className="bg-white/15 rounded-xl px-3 py-2 text-center">
+                      <div className="text-[9px] text-emerald-200 font-bold uppercase">Total Poin</div>
+                      <div className="text-lg font-black">{clubSayaTotalPoints}</div>
+                    </div>
+                  </div>
+                </div>
+                <Icon name="Users" className="w-12 h-12 text-white/15 absolute right-4 bottom-3" />
+              </div>
+
+              {/* Filter Kategori */}
+              <div className="grid gap-1 text-center text-[9px] font-bold" style={{gridTemplateColumns: 'repeat(auto-fit, minmax(0, 1fr))'}}>
+                {['Semua', 'Kyorugi', 'Poomsae', 'UKT/Diklat', 'Event', 'LatGab', 'Lainnya'].map(cat => (
+                  <button key={cat} onClick={() => setClubSayaFilter(cat === 'Event' ? 'Event Kejuaraan' : cat === 'LatGab' ? 'Event LatGab' : cat === 'Lainnya' ? 'Event Kegiatan Lain' : cat)} className={`p-1.5 rounded-xl transition border ${clubSayaFilter === (cat === 'Event' ? 'Event Kejuaraan' : cat === 'LatGab' ? 'Event LatGab' : cat === 'Lainnya' ? 'Event Kegiatan Lain' : cat) ? 'bg-emerald-700 text-white border-emerald-700 shadow-sm' : 'bg-white text-gray-500 border-gray-200'}`}>{cat}</button>
+                ))}
+              </div>
+
+              {/* Pencarian */}
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Icon name="Search" className="w-4 h-4 text-gray-400" /></div>
+                <input type="text" placeholder="Cari nama atlet di club saya..." value={clubSayaSearch} onChange={e => setClubSayaSearch(e.target.value)} className="w-full text-xs pl-9 p-2.5 bg-white border border-gray-200 rounded-xl focus:ring-1 focus:ring-emerald-500" />
+              </div>
+
+              {/* Daftar Atlet Club Saya */}
+              <div className="bg-white rounded-3xl shadow-sm border overflow-hidden">
+                <div className="bg-emerald-50 p-3 font-extrabold text-xs text-emerald-800 uppercase flex justify-between items-center">
+                  <span className="flex items-center gap-1.5"><Icon name="Users" className="w-3.5 h-3.5" /> Klasemen Club Saya</span>
+                  <span className="text-[9px] font-bold text-emerald-600">{clubSayaSearched.length} atlet</span>
+                </div>
+                <div className="divide-y divide-gray-100">
+                  {clubSayaSearched.map((atlet, index) => (
+                    <div key={atlet.id} className="p-3 flex justify-between items-center hover:bg-gray-50 transition">
+                      <div className="flex items-center gap-3 pr-2 min-w-0">
+                        <span className={`font-black text-sm w-5 shrink-0 text-center ${index === 0 ? 'text-yellow-500' : index === 1 ? 'text-gray-400' : index === 2 ? 'text-amber-600' : 'text-gray-400'}`}>{index + 1}</span>
+                        <div className="min-w-0">
+                          <div className="font-extrabold text-sm text-gray-800 truncate">{atlet.name} {atlet.id === user.id && <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 ml-1">Anda</span>}</div>
+                          <div className="text-[10px] text-gray-500 font-medium mt-0.5 truncate"><span className={getBeltBadgeClass(atlet.sabuk)}>{atlet.sabuk}</span></div>
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-end gap-1.5 shrink-0">
+                        <div className="font-black text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-lg text-xs border border-emerald-100 shadow-sm">{calculateTotal(atlet.id, clubSayaFilter)} POIN</div>
+                        <button onClick={() => setViewingHistoryAthleteId(atlet.id)} className="text-[9px] font-bold text-white bg-blue-600 hover:bg-blue-700 px-2 py-1 rounded shadow-sm transition flex items-center gap-1">
+                          <Icon name="List" className="w-3 h-3"/> Riwayat
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  {clubSayaSearched.length === 0 && (
+                    <div className="p-6 text-center text-xs text-gray-400 italic">Tidak ada atlet ditemukan di club Anda.</div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ===== VIEW: SEMUA CLUB (Atlet & Pelatih - lihat poin seluruh atlet dari beberapa club) ===== */}
+          {pointTab === 'semuaClub' && isAtletOrPelatih && (
+            <div className="space-y-4 animate-fade-in">
+              {/* Header Card Semua Club */}
+              <div className="bg-gradient-to-br from-violet-600 to-violet-800 rounded-3xl p-4 text-white shadow-xl relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-28 h-28 bg-white opacity-5 rounded-full -mr-8 -mt-8 blur-xl"></div>
+                <div className="relative z-10">
+                  <div className="text-[10px] text-violet-200 uppercase font-bold tracking-wider">Seluruh Club / Dojang</div>
+                  <div className="text-xl font-black mt-0.5">Klasemen Antar Club</div>
+                  <div className="flex gap-4 mt-3">
+                    <div className="bg-white/15 rounded-xl px-3 py-2 text-center">
+                      <div className="text-[9px] text-violet-200 font-bold uppercase">Jumlah Club</div>
+                      <div className="text-lg font-black">{uniqueClubs.length}</div>
+                    </div>
+                    <div className="bg-white/15 rounded-xl px-3 py-2 text-center">
+                      <div className="text-[9px] text-violet-200 font-bold uppercase">Total Atlet</div>
+                      <div className="text-lg font-black">{semuaClubAthletes.length}</div>
+                    </div>
+                    <div className="bg-white/15 rounded-xl px-3 py-2 text-center">
+                      <div className="text-[9px] text-violet-200 font-bold uppercase">Total Poin</div>
+                      <div className="text-lg font-black">{semuaClubTotalPoints}</div>
+                    </div>
+                  </div>
+                </div>
+                <Icon name="Globe" className="w-12 h-12 text-white/15 absolute right-4 bottom-3" />
+              </div>
+
+              {/* Filter Kategori & Club */}
+              <div className="grid gap-1 text-center text-[9px] font-bold" style={{gridTemplateColumns: 'repeat(auto-fit, minmax(0, 1fr))'}}>
+                {['Semua', 'Kyorugi', 'Poomsae', 'UKT/Diklat', 'Event', 'LatGab', 'Lainnya'].map(cat => (
+                  <button key={cat} onClick={() => setSemuaClubFilter(cat === 'Event' ? 'Event Kejuaraan' : cat === 'LatGab' ? 'Event LatGab' : cat === 'Lainnya' ? 'Event Kegiatan Lain' : cat)} className={`p-1.5 rounded-xl transition border ${semuaClubFilter === (cat === 'Event' ? 'Event Kejuaraan' : cat === 'LatGab' ? 'Event LatGab' : cat === 'Lainnya' ? 'Event Kegiatan Lain' : cat) ? 'bg-violet-700 text-white border-violet-700 shadow-sm' : 'bg-white text-gray-500 border-gray-200'}`}>{cat}</button>
+                ))}
+              </div>
+
+              {/* Filter Club */}
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Icon name="Filter" className="w-4 h-4 text-gray-400" /></div>
+                <select value={semuaClubClubFilter} onChange={e => setSemuaClubClubFilter(e.target.value)} className="w-full text-xs pl-9 p-2.5 bg-white border border-gray-200 rounded-xl focus:ring-1 focus:ring-violet-500 appearance-none">
+                  <option value="Semua">Semua Club ({semuaClubAthletes.length} atlet)</option>
+                  {uniqueClubs.map(clubName => (
+                    <option key={clubName} value={clubName}>{clubName} ({semuaClubAthletes.filter(a => a.club === clubName).length} atlet)</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Pencarian */}
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Icon name="Search" className="w-4 h-4 text-gray-400" /></div>
+                <input type="text" placeholder="Cari nama atlet / club..." value={semuaClubSearch} onChange={e => setSemuaClubSearch(e.target.value)} className="w-full text-xs pl-9 p-2.5 bg-white border border-gray-200 rounded-xl focus:ring-1 focus:ring-violet-500" />
+              </div>
+
+              {/* Daftar Atlet Semua Club */}
+              <div className="bg-white rounded-3xl shadow-sm border overflow-hidden">
+                <div className="bg-violet-50 p-3 font-extrabold text-xs text-violet-800 uppercase flex justify-between items-center">
+                  <span className="flex items-center gap-1.5"><Icon name="Users" className="w-3.5 h-3.5" /> Klasemen {semuaClubClubFilter === 'Semua' ? 'Semua Club' : semuaClubClubFilter}</span>
+                  <span className="text-[9px] font-bold text-violet-600">{semuaClubSearched.length} atlet</span>
+                </div>
+                <div className="divide-y divide-gray-100">
+                  {semuaClubSearched.map((atlet, index) => (
+                    <div key={atlet.id} className={`p-3 flex justify-between items-center transition ${atlet.club === user.club ? 'bg-violet-50/30' : 'hover:bg-gray-50'}`}>
+                      <div className="flex items-center gap-3 pr-2 min-w-0">
+                        <span className={`font-black text-sm w-5 shrink-0 text-center ${index === 0 ? 'text-yellow-500' : index === 1 ? 'text-gray-400' : index === 2 ? 'text-amber-600' : 'text-gray-400'}`}>{index + 1}</span>
+                        <div className="min-w-0">
+                          <div className="font-extrabold text-sm text-gray-800 truncate">{atlet.name} {atlet.id === user.id && <span className="text-[9px] font-bold text-violet-600 bg-violet-100 px-1.5 py-0.5 rounded border border-violet-200 ml-1">Anda</span>}</div>
+                          <div className="text-[9px] text-gray-500 font-bold mt-0.5 truncate flex gap-1 items-center flex-wrap">
+                            <span className="bg-violet-50 text-violet-700 px-1.5 py-0.5 rounded border border-violet-200">{atlet.club}</span>
+                            <span className={getBeltBadgeClass(atlet.sabuk)}>{atlet.sabuk}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-end gap-1.5 shrink-0">
+                        <div className="font-black text-violet-700 bg-violet-50 px-2 py-0.5 rounded-lg text-xs border border-violet-100 shadow-sm">{calculateTotal(atlet.id, semuaClubFilter)} POIN</div>
+                        <button onClick={() => setViewingHistoryAthleteId(atlet.id)} className="text-[9px] font-bold text-white bg-blue-600 hover:bg-blue-700 px-2 py-1 rounded shadow-sm transition flex items-center gap-1">
+                          <Icon name="List" className="w-3 h-3"/> Riwayat
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  {semuaClubSearched.length === 0 && (
+                    <div className="p-6 text-center text-xs text-gray-400 italic">Tidak ada atlet ditemukan.</div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ===== VIEW: LIHAT RIWAYAT ATLET SPESIFIK (dari Club Saya & Semua Club) ===== */}
+          {(pointTab === 'clubSaya' || pointTab === 'semuaClub') && viewingHistoryAthleteId && (() => {
+            const targetUser = users.find(u => u.id === viewingHistoryAthleteId);
+            const historyPoints = points.filter(p => p.athleteId === viewingHistoryAthleteId).reverse();
+            const backTab = pointTab; // kembali ke tab yang sama
+            
+            return (
+              <div className="space-y-4 animate-fade-in">
+                <div className="flex justify-between items-center bg-white p-3 rounded-2xl shadow-sm border">
+                  <button onClick={() => {setViewingHistoryAthleteId(null); setEditingPointId(null);}} className="text-xs font-bold text-gray-500 hover:text-red-700 flex items-center gap-1"><Icon name="ArrowLeft" className="w-4 h-4"/> Kembali</button>
+                  <button onClick={() => handleDownloadPointsPDF(viewingHistoryAthleteId)} className="bg-red-700 text-white px-2.5 py-1.5 rounded-lg text-[10px] font-bold shadow-sm flex items-center gap-1.5">
+                    <Icon name="Download" className="w-3.5 h-3.5"/> Unduh PDF
+                  </button>
+                </div>
+                
+                <div className="bg-red-50 p-4 rounded-3xl border border-red-100 flex justify-between items-center text-xs">
+                  <div>
+                    <h4 className="font-extrabold text-sm text-red-900">{targetUser?.name || 'Atlet Tidak Ditemukan'}</h4>
+                    <span className="text-[10px] font-bold text-red-700 bg-red-100 px-2 py-0.5 rounded mt-1 inline-block">{targetUser?.club}</span>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-[9px] text-red-500 font-bold uppercase">Total Poin</div>
+                    <div className="text-xl font-black text-red-800">{calculateTotal(viewingHistoryAthleteId, 'Semua')}</div>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <h3 className="font-extrabold text-xs text-gray-500 uppercase border-b pb-2">Riwayat Detail</h3>
+                  {historyPoints.map(p => (
+                    <div key={p.id} className="bg-white p-3.5 rounded-2xl border shadow-sm">
+                      <div>
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <div className="font-extrabold text-sm text-gray-800">{p.eventName}</div>
+                            <div className="text-[9px] text-gray-500 font-bold mt-1 uppercase tracking-wider flex gap-1 items-center flex-wrap">
+                              <span className="bg-gray-100 px-1.5 py-0.5 rounded border">{p.category}</span>
+                              <span className="bg-gray-100 px-1.5 py-0.5 rounded border">{p.division || p.level}</span>
+                            </div>
+                          </div>
+                          <div className="flex flex-col items-end gap-1 shrink-0">
+                            <span className="px-2 py-0.5 rounded-md text-[9px] font-black uppercase shadow-sm bg-white border border-gray-200">{p.achievement}</span>
+                            <span className="text-xs font-black text-red-600">+{p.points} POIN</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  {historyPoints.length === 0 && <p className="text-center text-xs text-gray-400 py-4 italic">Atlet ini belum memiliki riwayat poin.</p>}
+                </div>
+              </div>
+            );
+          })()}
 
           {/* VIEW: LEADERBOARD & LIHAT RIWAYAT */}
           {pointTab === 'leaderboard' && (
@@ -4754,6 +5619,7 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
       const [managerTab, setManagerTab] = useState('pengguna'); const [showAddAccount, setShowAddAccount] = useState(false); const [editingUserId, setEditingUserId] = useState(null);
       const [ktaUser, setKtaUser] = useState(null);
       const [searchQuery, setSearchQuery] = useState('');
+      const [sabukFilter, setSabukFilter] = useState('Semua');
       const [license, setLicense] = useState(''); 
       
       const [newClubName, setNewClubName] = useState('');
@@ -4779,7 +5645,16 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
         const matchRoleClub = user.role === 'super_admin' || u.club === user.club;
         const matchSearch = u.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
                             (u.regNo && u.regNo.toLowerCase().includes(searchQuery.toLowerCase()));
-        return matchRoleClub && matchSearch;
+        const matchSabuk = sabukFilter === 'Semua' || 
+                           (sabukFilter === 'Tanpa Sabuk' ? (!u.sabuk || u.role === 'super_admin' || u.role === 'pengurus_club') : u.sabuk === sabukFilter);
+        return matchRoleClub && matchSearch && matchSabuk;
+      }).sort((a, b) => {
+        // Urutkan berdasarkan tingkatan sabuk (beltSequence), tanpa sabuk di akhir
+        const aIdx = a.sabuk ? beltSequence.indexOf(a.sabuk) : 999;
+        const bIdx = b.sabuk ? beltSequence.indexOf(b.sabuk) : 999;
+        if (aIdx !== bIdx) return aIdx - bIdx;
+        // Jika sama sabuknya, urutkan berdasarkan nama
+        return (a.name || '').localeCompare(b.name || '', 'id');
       });
 
       // --- LOGIKA STATISTIK SABUK (MENGHITUNG SELURUH DATA, TIDAK TERPENGARUH PENCARIAN) ---
@@ -4961,6 +5836,202 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
         triggerToast("Data pengguna berhasil diunduh!");
       };
 
+      // ====================================================================
+      // FUNGSI CETAK PDF AKUN DIURUTKAN BERDASARKAN SABUK (KHUSUS SUPER ADMIN)
+      // Mencetak daftar seluruh akun dikelompokkan per tingkatan sabuk
+      // ====================================================================
+      const handleDownloadAccountsPDF = () => {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+
+        // Kelompokkan pengguna berdasarkan sabuk (pakai beltSequence untuk urutan)
+        const grouped = {};
+        const noBeltUsers = []; // pengguna tanpa sabuk (super_admin, pengurus_club)
+
+        beltSequence.forEach(b => grouped[b] = []);
+        baseStatUsers.forEach(u => {
+          if (u.sabuk && grouped[u.sabuk]) {
+            grouped[u.sabuk].push(u);
+          } else {
+            noBeltUsers.push(u);
+          }
+        });
+
+        // Hitung statistik
+        const totalUsers = baseStatUsers.length;
+        const totalAtlet = baseStatUsers.filter(u => u.role === 'atlet').length;
+        const totalPelatih = baseStatUsers.filter(u => u.role === 'pelatih').length;
+        const totalPengurus = baseStatUsers.filter(u => u.role === 'pengurus_club').length;
+        const totalSuperAdmin = baseStatUsers.filter(u => u.role === 'super_admin').length;
+
+        // === KOP / HEADER ===
+        doc.setFontSize(15);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(185, 28, 28);
+        doc.text("DATA AKUN ANGGOTA", 105, 15, { align: "center" });
+        doc.setFontSize(10);
+        doc.text("Diurutkan Berdasarkan Tingkatan Sabuk", 105, 22, { align: "center" });
+
+        // === INFO SISTEM ===
+        doc.setFontSize(9);
+        doc.setTextColor(80, 80, 80);
+        doc.setFont("helvetica", "normal");
+        doc.text("Sistem Informasi Taekwondo Musi Rawas", 105, 28, { align: "center" });
+        doc.text(`Tanggal Cetak: ${new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })}`, 105, 33, { align: "center" });
+
+        // === RINGKASAN STATISTIK ===
+        doc.setFontSize(9);
+        doc.setTextColor(50, 50, 50);
+        doc.setFont("helvetica", "bold");
+        doc.text(`Total Anggota: ${totalUsers}  |  Atlet: ${totalAtlet}  |  Pelatih: ${totalPelatih}  |  Pengurus: ${totalPengurus}  |  Super Admin: ${totalSuperAdmin}`, 105, 40, { align: "center" });
+
+        // === RINGKASAN PER SABUK ===
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(185, 28, 28);
+        doc.text("RINGKASAN PER SABUK", 14, 48);
+
+        const summaryHeaders = [["No", "Tingkatan Sabuk", "Jumlah"]];
+        const summaryData = beltSequence
+          .filter(b => grouped[b] && grouped[b].length > 0)
+          .map((b, i) => [i + 1, b, grouped[b].length]);
+
+        if (noBeltUsers.length > 0) {
+          summaryData.push([summaryData.length + 1, 'Tanpa Sabuk (Admin/Pengurus)', noBeltUsers.length]);
+        }
+
+        doc.autoTable({
+          head: summaryHeaders,
+          body: summaryData,
+          startY: 51,
+          theme: 'grid',
+          headStyles: { fillColor: [185, 28, 28], fontSize: 9 },
+          styles: { fontSize: 8 },
+          columnStyles: {
+            0: { halign: 'center', cellWidth: 10 },
+            2: { halign: 'center', cellWidth: 20, fontStyle: 'bold' }
+          }
+        });
+
+        let currentY = doc.lastAutoTable.finalY + 10;
+
+        // === DETAIL PER SABUK ===
+        beltSequence.forEach(belt => {
+          const members = grouped[belt];
+          if (!members || members.length === 0) return;
+
+          if (currentY > 240) { doc.addPage(); currentY = 20; }
+
+          // Judul grup sabuk
+          doc.setFontSize(10);
+          doc.setFont("helvetica", "bold");
+          doc.setTextColor(185, 28, 28);
+          doc.text(belt.toUpperCase(), 14, currentY);
+          doc.setFontSize(8);
+          doc.setTextColor(100, 100, 100);
+          doc.text(`${members.length} anggota`, 196, currentY, { align: "right" });
+          currentY += 4;
+
+          const headers = [["No", "Nama Lengkap", "Peran", "Dojang", "JK", "No. Reg", "Status"]];
+          const data = members.map((m, i) => [
+            i + 1,
+            m.name,
+            m.role === 'super_admin' ? 'Super Admin' : m.role === 'pengurus_club' ? 'Pengurus' : m.role === 'pelatih' ? 'Pelatih' : 'Atlet',
+            m.club || '-',
+            m.gender === 'Perempuan' ? 'P' : 'L',
+            m.regNo || '-',
+            m.status === 'Nonaktif' ? 'SUSPENDED' : 'Aktif'
+          ]);
+
+          doc.autoTable({
+            head: headers,
+            body: data,
+            startY: currentY,
+            theme: 'striped',
+            headStyles: { fillColor: [185, 28, 28], fontSize: 8 },
+            styles: { fontSize: 7, cellPadding: 1.5 },
+            columnStyles: {
+              0: { halign: 'center', cellWidth: 8 },
+              5: { cellWidth: 28 },
+              6: { halign: 'center', cellWidth: 18 }
+            },
+            didParseCell: function(data) {
+              // Highlight SUSPENDED cells
+              if (data.section === 'body' && data.column.index === 6 && data.cell.raw === 'SUSPENDED') {
+                data.cell.styles.textColor = [220, 38, 38];
+                data.cell.styles.fontStyle = 'bold';
+              }
+            }
+          });
+
+          currentY = doc.lastAutoTable.finalY + 8;
+        });
+
+        // === KELOMPOK TANPA SABUK (Admin & Pengurus) ===
+        if (noBeltUsers.length > 0) {
+          if (currentY > 240) { doc.addPage(); currentY = 20; }
+
+          doc.setFontSize(10);
+          doc.setFont("helvetica", "bold");
+          doc.setTextColor(100, 100, 100);
+          doc.text("TANPA SABUK (ADMIN & PENGURUS)", 14, currentY);
+          doc.setFontSize(8);
+          doc.setTextColor(100, 100, 100);
+          doc.text(`${noBeltUsers.length} anggota`, 196, currentY, { align: "right" });
+          currentY += 4;
+
+          const headers = [["No", "Nama Lengkap", "Peran", "Dojang", "Email", "Status"]];
+          const data = noBeltUsers.map((m, i) => [
+            i + 1,
+            m.name,
+            m.role === 'super_admin' ? 'Super Admin' : 'Pengurus Club',
+            m.club || '-',
+            m.email || '-',
+            m.status === 'Nonaktif' ? 'SUSPENDED' : 'Aktif'
+          ]);
+
+          doc.autoTable({
+            head: headers,
+            body: data,
+            startY: currentY,
+            theme: 'striped',
+            headStyles: { fillColor: [100, 100, 100], fontSize: 8 },
+            styles: { fontSize: 7, cellPadding: 1.5 },
+            columnStyles: {
+              0: { halign: 'center', cellWidth: 8 },
+              5: { halign: 'center', cellWidth: 18 }
+            },
+            didParseCell: function(data) {
+              if (data.section === 'body' && data.column.index === 5 && data.cell.raw === 'SUSPENDED') {
+                data.cell.styles.textColor = [220, 38, 38];
+                data.cell.styles.fontStyle = 'bold';
+              }
+            }
+          });
+
+          currentY = doc.lastAutoTable.finalY + 8;
+        }
+
+        // === TANDA TANGAN ===
+        if (currentY > 230) { doc.addPage(); currentY = 40; } else { currentY += 10; }
+
+        doc.setFontSize(9);
+        doc.setTextColor(120, 120, 120);
+        doc.setFont("helvetica", "normal");
+        doc.text(`Dicetak dari Sistem Informasi TI Musi Rawas pada ${new Date().toLocaleString('id-ID')}`, 105, currentY, { align: "center" });
+
+        doc.setFontSize(10);
+        doc.setTextColor(50, 50, 50);
+        doc.setFont("helvetica", "bold");
+        doc.text("Mengetahui,", 145, currentY + 14);
+        doc.text("Super Admin TI Musi Rawas", 145, currentY + 19);
+        doc.setFont("helvetica", "normal");
+        doc.text(`(${user.name || 'Super Admin'})`, 145, currentY + 37);
+
+        doc.save(`Data_Akun_Urut_Sabuk_${new Date().toISOString().slice(0,10)}.pdf`);
+        triggerToast("PDF Data Akun (Urut Sabuk) berhasil diunduh!");
+      };
+
       const handleToggleFeature = (roleKey, featureKey) => {
         const updated = {
           ...featureSettings,
@@ -5089,13 +6160,22 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
           {managerTab === 'pengguna' && (<div className="space-y-4 animate-fade-in">
             
             {!showAddAccount && !editingUserId && (
-              <div className="flex gap-2">
-                <button onClick={() => { handleCancelEdit(); setShowAddAccount(true); }} className="flex-1 bg-red-600 text-white py-2.5 rounded-xl font-bold text-xs shadow-sm flex justify-center items-center"><Icon name="UserPlus" className="w-4 h-4 inline mr-1 text-white"/> Baru</button>
-                <button onClick={handleDownloadCSV} className="flex-1 bg-blue-600 text-white py-2.5 rounded-xl font-bold text-xs shadow-sm flex justify-center items-center gap-1"><Icon name="Download" className="w-4 h-4 text-white"/> Unduh CSV</button>
-                <label className="flex-1 bg-emerald-600 hover:bg-emerald-700 cursor-pointer text-white py-2.5 rounded-xl font-bold text-xs shadow-sm flex justify-center items-center gap-1 transition">
-                   <Icon name="Upload" className="w-4 h-4 text-white"/> Impor CSV
-                   <input type="file" accept=".csv" className="hidden" onChange={handleFileUpload} />
-                </label>
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  <button onClick={() => { handleCancelEdit(); setShowAddAccount(true); }} className="flex-1 bg-red-600 text-white py-2.5 rounded-xl font-bold text-xs shadow-sm flex justify-center items-center"><Icon name="UserPlus" className="w-4 h-4 inline mr-1 text-white"/> Baru</button>
+                  <button onClick={handleDownloadCSV} className="flex-1 bg-blue-600 text-white py-2.5 rounded-xl font-bold text-xs shadow-sm flex justify-center items-center gap-1"><Icon name="Download" className="w-4 h-4 text-white"/> Unduh CSV</button>
+                  <label className="flex-1 bg-emerald-600 hover:bg-emerald-700 cursor-pointer text-white py-2.5 rounded-xl font-bold text-xs shadow-sm flex justify-center items-center gap-1 transition">
+                     <Icon name="Upload" className="w-4 h-4 text-white"/> Impor CSV
+                     <input type="file" accept=".csv" className="hidden" onChange={handleFileUpload} />
+                  </label>
+                </div>
+                {/* TOMBOL CETAK PDF AKUN URUT SABUK - KHUSUS SUPER ADMIN */}
+                {user.role === 'super_admin' && (
+                  <button onClick={handleDownloadAccountsPDF} className="w-full bg-gradient-to-r from-red-700 to-red-800 hover:from-red-800 hover:to-red-900 active:scale-[0.99] text-white py-2.5 rounded-xl font-bold text-xs shadow-sm flex justify-center items-center gap-2 transition">
+                    <Icon name="FileText" className="w-4 h-4 text-white" />
+                    Cetak PDF Akun &mdash; Urut Berdasarkan Sabuk
+                  </button>
+                )}
               </div>
             )}
             
@@ -5132,10 +6212,29 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
               </div>
             )}
 
-            <div className="relative mb-2">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Icon name="Search" className="w-4 h-4 text-gray-400" /></div>
-              <input type="text" placeholder="Cari nama atau No. Reg..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full text-xs pl-9 p-2.5 bg-white border border-gray-200 rounded-xl focus:ring-1 focus:ring-red-500 transition" />
+            <div className="flex gap-2 mb-2">
+              <div className="relative flex-1">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Icon name="Search" className="w-4 h-4 text-gray-400" /></div>
+                <input type="text" placeholder="Cari nama atau No. Reg..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full text-xs pl-9 p-2.5 bg-white border border-gray-200 rounded-xl focus:ring-1 focus:ring-red-500 transition" />
+              </div>
+              <div className="relative w-44 shrink-0">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Icon name="Filter" className="w-4 h-4 text-gray-400" /></div>
+                <select value={sabukFilter} onChange={e => setSabukFilter(e.target.value)} className="w-full text-xs pl-9 p-2.5 pr-2 bg-white border border-gray-200 rounded-xl focus:ring-1 focus:ring-red-500 transition appearance-none cursor-pointer">
+                  <option value="Semua">Semua Sabuk</option>
+                  {activeBelts.map(b => <option key={b} value={b}>{b.split(' (')[0].replace('Sabuk ', '')} ({beltStats[b]})</option>)}
+                  {baseStatUsers.some(u => !u.sabuk || u.role === 'super_admin' || u.role === 'pengurus_club') && <option value="Tanpa Sabuk">Tanpa Sabuk ({baseStatUsers.filter(u => !u.sabuk || u.role === 'super_admin' || u.role === 'pengurus_club').length})</option>}
+                </select>
+                <div className="absolute inset-y-0 right-0 pr-2.5 flex items-center pointer-events-none"><Icon name="ChevronDown" className="w-3.5 h-3.5 text-gray-400" /></div>
+              </div>
             </div>
+            {sabukFilter !== 'Semua' && (
+              <div className="flex items-center gap-2 mb-2 animate-fade-in">
+                <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Filter aktif:</span>
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border shadow-sm ${sabukFilter === 'Tanpa Sabuk' ? 'bg-gray-100 text-gray-800 border-gray-300' : getBeltBadgeClass(sabukFilter)}`}>{sabukFilter === 'Tanpa Sabuk' ? 'Tanpa Sabuk' : sabukFilter}</span>
+                <button onClick={() => setSabukFilter('Semua')} className="text-[10px] font-bold text-red-600 hover:text-red-800 flex items-center gap-0.5 transition"><Icon name="X" className="w-3 h-3"/> Hapus filter</button>
+                <span className="text-[10px] font-bold text-gray-400 ml-auto">{visibleUsers.length} anggota ditampilkan</span>
+              </div>
+            )}
 
             {/* LIST PENGGUNA */}
             <div className="space-y-3">
