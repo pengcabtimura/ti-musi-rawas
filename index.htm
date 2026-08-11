@@ -24,6 +24,8 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <!-- Chart.js untuk Grafik Tes Fisik -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 
   <style>
     .hide-scrollbar::-webkit-scrollbar { display: none; }
@@ -273,9 +275,9 @@
     const initialSppPayments = [{ id: 101, billId: 1, athleteId: 2, status: 'pending', paymentDate: null }, { id: 102, billId: 2, athleteId: 4, status: 'paid', paymentDate: '2026-05-05' }, { id: 103, billId: 2, athleteId: 3, status: 'pending', paymentDate: null }];
     const initialSanctions = [{ id: 1, userId: 4, issuerId: 3, issuerName: 'Siti (Pelatih)', reason: 'Sering tidak hadir latihan wajib tanpa keterangan', date: '2026-05-20', level: 'Ringan', status: 'Aktif' }];
     const initialFeatureSettings = {
-      pengurus_club: { absensi: true, spp: true, sanksi: true, ukt: true, kejuaraan: true, poin: true },
-      pelatih: { absensi: true, spp: false, sanksi: true, ukt: false, kejuaraan: true, poin: true },
-      atlet: { absensi: true, spp: true, sanksi: true, ukt: true, kejuaraan: true, poin: true },
+      pengurus_club: { absensi: true, spp: true, sanksi: true, ukt: true, kejuaraan: true, poin: true, tes_fisik: true },
+      pelatih: { absensi: true, spp: false, sanksi: true, ukt: false, kejuaraan: true, poin: true, tes_fisik: true },
+      atlet: { absensi: true, spp: true, sanksi: true, ukt: true, kejuaraan: true, poin: true, tes_fisik: true },
       branding: { logo: null }
     };
 
@@ -473,8 +475,19 @@
       return [data, add, update, remove];
     }
 
-    function LoginScreen({ onLogin, users, appLogo }) {
+    function LoginScreen({ onLogin, users, appLogo, addUser, clubsData }) {
       const [usernameInput, setUsernameInput] = useState(''); const [passwordInput, setPasswordInput] = useState(''); const [errorMsg, setErrorMsg] = useState('');
+      const [showRegister, setShowRegister] = useState(false);
+      const [regName, setRegName] = useState(''); const [regUsername, setRegUsername] = useState('');
+      const [regPlaceOfBirth, setRegPlaceOfBirth] = useState('');
+      const [regDateOfBirth, setRegDateOfBirth] = useState('');
+      const [regGender, setRegGender] = useState('');
+      const [regClub, setRegClub] = useState('');
+      const [regSabuk, setRegSabuk] = useState('Sabuk Putih Polos (Geup 10)');
+      const [regNo, setRegNo] = useState('');
+      const [regNotif, setRegNotif] = useState({ show: false, msg: '', type: 'error' });
+      const [regSuccess, setRegSuccess] = useState(false);
+      const showRegNoField = beltSequence.indexOf(regSabuk) >= 1;
       const handleAuth = (e) => {
         e.preventDefault();
         const foundUser = users.find(u => u.username === usernameInput && u.password === passwordInput);
@@ -482,7 +495,7 @@
           if (foundUser.status === 'Nonaktif') {
             const today = new Date().toISOString().split('T')[0];
             if (foundUser.suspendedUntil && foundUser.suspendedUntil >= today) {
-              setErrorMsg(`Akses Ditolak! Akun Anda diblokir hingga ${foundUser.suspendedUntil}.`);
+              setErrorMsg('Akses Ditolak! Akun Anda diblokir hingga ' + foundUser.suspendedUntil + '.');
               return;
             }
           }
@@ -490,6 +503,38 @@
         } else {
           setErrorMsg('Username atau Password yang Anda masukkan salah!');
         }
+      };
+      const toUpper = (val) => val.toUpperCase().replace(/[^A-Z0-9 .\-]/g, '');
+      const handleRegister = (e) => {
+        e.preventDefault();
+        const cleanName = toUpper(regName).trim();
+        const cleanUsername = toUpper(regUsername).trim().replace(/\s+/g, '');
+        if (!cleanName || cleanName.length < 3) { setRegNotif({ show: true, msg: 'Nama Lengkap minimal 3 karakter huruf kapital.', type: 'error' }); return; }
+        if (!cleanUsername || cleanUsername.length < 3) { setRegNotif({ show: true, msg: 'Username minimal 3 karakter huruf kapital tanpa spasi.', type: 'error' }); return; }
+        if (/[^A-Z0-9.\-]/.test(cleanUsername)) { setRegNotif({ show: true, msg: 'Username hanya boleh huruf besar, angka, titik, dan strip.', type: 'error' }); return; }
+        const dupName = users.find(u => u.name === cleanName);
+        if (dupName) { setRegNotif({ show: true, msg: 'Akun dengan Nama Lengkap "' + cleanName + '" sudah terdaftar di sistem TI Musi Rawas!', type: 'error' }); return; }
+        const dupUser = users.find(u => u.username === cleanUsername);
+        if (dupUser) { setRegNotif({ show: true, msg: 'Akun dengan Username "' + cleanUsername + '" sudah terdaftar di sistem TI Musi Rawas!', type: 'error' }); return; }
+        if (!regPlaceOfBirth.trim()) { setRegNotif({ show: true, msg: 'Tempat Lahir wajib diisi.', type: 'error' }); return; }
+        if (!regDateOfBirth) { setRegNotif({ show: true, msg: 'Tanggal Lahir wajib diisi.', type: 'error' }); return; }
+        if (!regGender) { setRegNotif({ show: true, msg: 'Jenis Kelamin wajib dipilih.', type: 'error' }); return; }
+        if (!regClub) { setRegNotif({ show: true, msg: 'Unit Latihan/Club wajib dipilih.', type: 'error' }); return; }
+        const needRegNo = beltSequence.indexOf(regSabuk) >= 1;
+        if (needRegNo && !regNo.trim()) { setRegNotif({ show: true, msg: 'Sabuk kuning ke atas wajib mengisi No. Registrasi/Sertifikat.', type: 'error' }); return; }
+        const newId = Date.now();
+        addUser({
+          id: newId, name: cleanName, username: cleanUsername, password: 'TKDMURA',
+          email: '', role: 'atlet', club: regClub, gender: regGender, placeOfBirth: toUpper(regPlaceOfBirth).trim(), dateOfBirth: regDateOfBirth,
+          regNo: needRegNo ? regNo.trim() : '', sabuk: regSabuk, avatar: '', status: 'Aktif', suspendedUntil: null
+        });
+        setRegSuccess(true);
+        setRegNotif({ show: true, msg: 'Registrasi berhasil! Akun atlet telah dibuat. Silakan login dengan Username dan Password TKDMURA.', type: 'success' });
+        setTimeout(() => {
+          setShowRegister(false); setRegName(''); setRegUsername(''); setRegSuccess(false); setRegNotif({ show: false, msg: '', type: 'error' });
+          setRegPlaceOfBirth(''); setRegDateOfBirth(''); setRegGender(''); setRegClub(''); setRegSabuk('Sabuk Putih Polos (Geup 10)'); setRegNo('');
+          setUsernameInput(cleanUsername); setPasswordInput('TKDMURA');
+        }, 2500);
       };
       return (
         <div className="app-wrapper bg-gradient-to-tr from-red-800 to-red-950 flex items-center justify-center p-4 w-full">
@@ -499,27 +544,144 @@
               <h1 className="text-3xl font-black text-gray-900 tracking-tight">TI Musi Rawas</h1>
               <p className="text-sm font-bold text-red-600 mt-1">Sistem Informasi Taekwondo Musi Rawas</p>
             </div>
-            {errorMsg && <div className="bg-red-50 text-red-600 p-3 rounded-xl text-xs font-bold mb-4 text-center border border-red-200 animate-pulse">{errorMsg}</div>}
-            <form onSubmit={handleAuth} className="space-y-4">
-              <div>
-                <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Username</label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Icon name="User" className="w-4 h-4 text-gray-400" /></div>
-                  <input type="text" value={usernameInput} onChange={e => setUsernameInput(e.target.value)} className="w-full pl-9 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold text-gray-800 focus:ring-2 focus:ring-red-500 transition" required />
+            {!showRegister ? (
+              <>
+                {errorMsg && <div className="bg-red-50 text-red-600 p-3 rounded-xl text-xs font-bold mb-4 text-center border border-red-200 animate-pulse">{errorMsg}</div>}
+                <form onSubmit={handleAuth} className="space-y-4">
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Username</label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Icon name="User" className="w-4 h-4 text-gray-400" /></div>
+                      <input type="text" value={usernameInput} onChange={e => setUsernameInput(e.target.value)} className="w-full pl-9 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold text-gray-800 focus:ring-2 focus:ring-red-500 transition" required />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Password</label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Icon name="Lock" className="w-4 h-4 text-gray-400" /></div>
+                      <input type="password" value={passwordInput} onChange={e => setPasswordInput(e.target.value)} className="w-full pl-9 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold text-gray-800 focus:ring-2 focus:ring-red-500 transition" required />
+                    </div>
+                  </div>
+                  <button type="submit" className="w-full bg-red-700 hover:bg-red-800 text-white py-3.5 rounded-xl font-black text-sm shadow-xl shadow-red-700/30 transition-all flex justify-center items-center gap-2 mt-2">
+                    <Icon name="LogIn" className="w-5 h-5" /> Masuk ke Sistem
+                  </button>
+                </form>
+                <div className="mt-5 text-center">
+                  <button onClick={() => { setShowRegister(true); setErrorMsg(''); setRegNotif({ show: false, msg: '', type: 'error' }); setRegSuccess(false); }} className="text-xs font-bold text-red-600 hover:text-red-700 hover:underline transition">
+                    Belum punya akun? <span className="font-black">Registrasi Atlet</span>
+                  </button>
                 </div>
-              </div>
-              <div>
-                <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Password</label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Icon name="Lock" className="w-4 h-4 text-gray-400" /></div>
-                  <input type="password" value={passwordInput} onChange={e => setPasswordInput(e.target.value)} className="w-full pl-9 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold text-gray-800 focus:ring-2 focus:ring-red-500 transition" required />
+              </>
+            ) : (
+              <>
+                {regNotif.show && (
+                  <div className={'p-3 rounded-xl text-xs font-bold mb-4 text-center border animate-pulse ' + (regNotif.type === 'success' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-600 border-red-200')}>
+                    <div className="flex items-center justify-center gap-1.5">
+                      <Icon name={regNotif.type === 'success' ? 'CheckCircle' : 'AlertCircle'} className="w-4 h-4" />
+                      <span>{regNotif.msg}</span>
+                    </div>
+                  </div>
+                )}
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <Icon name="Info" className="w-4 h-4 text-amber-600" />
+                    <span className="text-[11px] font-extrabold text-amber-700">Registrasi Akun Atlet</span>
+                  </div>
+                  <p className="text-[10px] text-amber-600 font-bold leading-relaxed">Password akun otomatis dikunci: <span className="font-black">TKDMURA</span>. Nama Lengkap dan Username wajib huruf KAPITAL semua.</p>
                 </div>
-              </div>
-              <button type="submit" className="w-full bg-red-700 hover:bg-red-800 text-white py-3.5 rounded-xl font-black text-sm shadow-xl shadow-red-700/30 transition-all flex justify-center items-center gap-2 mt-2">
-                <Icon name="LogIn" className="w-5 h-5" /> Masuk ke Sistem
-              </button>
-            </form>
-            <div className="mt-8 text-center text-[9px] text-gray-400 font-bold">
+                <form onSubmit={handleRegister} className="space-y-4">
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Nama Lengkap <span className="text-red-500">*HURUF KAPITAL</span></label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Icon name="User" className="w-4 h-4 text-gray-400" /></div>
+                      <input type="text" value={regName} onChange={e => setRegName(toUpper(e.target.value))} placeholder="Contoh: BUDI SANTOSO" className="w-full pl-9 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-black text-gray-800 uppercase tracking-wide focus:ring-2 focus:ring-red-500 transition" style={{textTransform: 'uppercase'}} required disabled={regSuccess} />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Username <span className="text-red-500">*HURUF KAPITAL</span></label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Icon name="AtSign" className="w-4 h-4 text-gray-400" /></div>
+                      <input type="text" value={regUsername} onChange={e => setRegUsername(toUpper(e.target.value).replace(/\s/g, ''))} placeholder="Contoh: BUDISANTOSO" className="w-full pl-9 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-black text-gray-800 uppercase tracking-wide focus:ring-2 focus:ring-red-500 transition" style={{textTransform: 'uppercase'}} required disabled={regSuccess} />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Password</label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Icon name="Lock" className="w-4 h-4 text-gray-400" /></div>
+                      <input type="text" value="TKDMURA" readOnly className="w-full pl-9 pr-12 py-3 bg-gray-100 border border-gray-300 rounded-xl text-sm font-black text-gray-500 cursor-not-allowed" />
+                      <div className="absolute inset-y-0 right-0 pr-3 flex items-center"><Icon name="ShieldCheck" className="w-4 h-4 text-green-500" title="Password dikunci otomatis" /></div>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Tempat Lahir</label>
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Icon name="MapPin" className="w-4 h-4 text-gray-400" /></div>
+                        <input type="text" value={regPlaceOfBirth} onChange={e => setRegPlaceOfBirth(toUpper(e.target.value))} placeholder="KOTA" className="w-full pl-9 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-800 uppercase focus:ring-2 focus:ring-red-500 transition" style={{textTransform:'uppercase'}} required disabled={regSuccess} />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Tanggal Lahir</label>
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Icon name="Calendar" className="w-4 h-4 text-gray-400" /></div>
+                        <input type="date" value={regDateOfBirth} onChange={e => setRegDateOfBirth(e.target.value)} max={new Date().toISOString().split('T')[0]} className="w-full pl-9 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-800 focus:ring-2 focus:ring-red-500 transition" required disabled={regSuccess} />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Jenis Kelamin</label>
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Icon name="Users" className="w-4 h-4 text-gray-400" /></div>
+                        <select value={regGender} onChange={e => setRegGender(e.target.value)} className="w-full pl-9 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-800 focus:ring-2 focus:ring-red-500 transition appearance-none" required disabled={regSuccess}>
+                          <option value="">-- Pilih --</option>
+                          <option value="Laki-laki">Laki-laki</option>
+                          <option value="Perempuan">Perempuan</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Unit Latihan / Club</label>
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Icon name="Building2" className="w-4 h-4 text-gray-400" /></div>
+                        <select value={regClub} onChange={e => setRegClub(e.target.value)} className="w-full pl-9 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-800 focus:ring-2 focus:ring-red-500 transition appearance-none" required disabled={regSuccess}>
+                          <option value="">-- Pilih Club --</option>
+                          {(clubsData || []).map(c => <option key={c.id || c.name} value={c.name}>{c.name}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Tingkat Sabuk Sekarang</label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Icon name="Award" className="w-4 h-4 text-gray-400" /></div>
+                      <select value={regSabuk} onChange={e => setRegSabuk(e.target.value)} className="w-full pl-9 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-800 focus:ring-2 focus:ring-red-500 transition appearance-none" required disabled={regSuccess}>
+                        {beltSequence.map((b, i) => <option key={b} value={b}>{b}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                  {showRegNoField && (
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">No. Registrasi / Sertifikat <span className="text-red-500">*Wajib</span></label>
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Icon name="FileText" className="w-4 h-4 text-gray-400" /></div>
+                        <input type="text" value={regNo} onChange={e => setRegNo(e.target.value)} placeholder="Masukkan nomor registrasi atau sertifikat" className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-800 focus:ring-2 focus:ring-red-500 transition" required={showRegNoField} disabled={regSuccess} />
+                      </div>
+                      <p className="text-[9px] text-amber-600 font-bold mt-1 flex items-center gap-1"><Icon name="Info" className="w-3 h-3" />Sabuk kuning ke atas wajib memiliki No. Registrasi/Sertifikat.</p>
+                    </div>
+                  )}
+                  <div className="flex gap-2 mt-2">
+                    <button type="button" onClick={() => { setShowRegister(false); setRegName(''); setRegUsername(''); setRegPlaceOfBirth(''); setRegDateOfBirth(''); setRegGender(''); setRegClub(''); setRegSabuk('Sabuk Putih Polos (Geup 10)'); setRegNo(''); setRegNotif({ show: false, msg: '', type: 'error' }); setRegSuccess(false); }} className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 py-3 rounded-xl font-bold text-xs transition-all flex justify-center items-center gap-1.5">
+                      <Icon name="ArrowLeft" className="w-4 h-4" /> Kembali
+                    </button>
+                    <button type="submit" disabled={regSuccess} className="flex-1 bg-red-700 hover:bg-red-800 text-white py-3 rounded-xl font-black text-sm shadow-xl shadow-red-700/30 transition-all flex justify-center items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                      <Icon name="UserPlus" className="w-5 h-5" /> {regSuccess ? 'Tersimpan...' : 'Daftar Akun'}
+                    </button>
+                  </div>
+                </form>
+              </>
+            )}
+            <div className="mt-6 text-center text-[9px] text-gray-400 font-bold">
               &copy;PENGKAB TI MUSI RAWAS<br/>Developed for Taekwondo Indonesia Musi Rawas
             </div>
           </div>
@@ -923,6 +1085,1631 @@
       );
     }
 
+    // ======================== NORMA TES FISIK TAEKWONDO (Ilmu Olahraga) ========================
+    const TES_FISIK_ITEMS = [
+      { key: 'pushUp', label: 'Kekuatan Push-up (1 Menit)', unit: 'reps/menit', description: 'Kekuatan Otot Lengan Atas & Dada', type: 'higher_better' },
+      { key: 'sitUp', label: 'Kekuatan Sit-up (1 Menit)', unit: 'reps/menit', description: 'Kekuatan Otot Perut (Endurance)', type: 'higher_better' },
+      { key: 'bleepTest', label: 'Bleep Test (VO2Max)', unit: 'ml/kg/menit', description: 'Daya Tahan Kardiovaskular', type: 'higher_better' },
+      { key: 'illinoisRun', label: 'Illinois Run (Kelincahan)', unit: 'detik', description: 'Kelincahan & Perubahan Arah', type: 'lower_better' },
+      { key: 'sprint20m', label: 'Sprint 20m (Kecepatan)', unit: 'detik', description: 'Kecepatan Lari 20 Meter', type: 'lower_better' },
+      { key: 'verticalJump', label: 'Daya Ledak (Vertical Jump)', unit: 'cm', description: 'Daya Ledak Otot Tungkai', type: 'higher_better' },
+      { key: 'sitAndReach', label: 'Sit & Reach (Kelenturan)', unit: 'cm', description: 'Kelenturan Flexibility (Pinggang & Hamstring)', type: 'higher_better' }
+    ];
+    // Konfigurasi tes komposit (memiliki beberapa field input yang dihitung menjadi 1 nilai akhir)
+    const COMPOSITE_TESTS = {
+      bleepTest: {
+        fields: [
+          { key: 'bleepLevel', label: 'Level', placeholder: 'Contoh: 5' },
+          { key: 'bleepShuttle', label: 'Balikan (Shuttle)', placeholder: 'Contoh: 3' }
+        ],
+        calculate: (vals, age) => {
+          const level = Number(vals.bleepLevel || 0);
+          const shuttle = Number(vals.bleepShuttle || 0);
+          if (level <= 0) return null;
+          // Estimasi kecepatan berdasarkan level dan shuttle (Leger 1982)
+          // Speed per level: 8.5 km/h at level 1, +0.5 km/h per level
+          // Setiap level memiliki jumlah shuttle bervariasi, diambil rata-rata ~8.5 shuttle/level
+          const shuttlesPerLevel = [0, 7, 8, 8, 9, 9, 10, 10, 11, 11, 11, 12, 12, 13, 13, 13, 14, 14, 15, 15, 16];
+          const maxShuttle = shuttlesPerLevel[Math.min(level, shuttlesPerLevel.length - 1)] || 8;
+          const speed = 8.0 + 0.5 * level + (shuttle > 0 ? (shuttle / maxShuttle) * 0.5 : 0);
+          // Formula VO2Max (Leger & Lambert 1982, disederhanakan)
+          const a = Number(age) || 20;
+          const vo2max = 31.025 + 3.238 * speed - 3.248 * a + 0.1536 * a * speed;
+          return Math.round(vo2max * 10) / 10;
+        },
+        summaryLabel: (vals) => {
+          const l = vals.bleepLevel || '-';
+          const s = vals.bleepShuttle || '-';
+          return `Level ${l}, Shuttle ${s}`;
+        }
+      },
+      verticalJump: {
+        fields: [
+          { key: 'vjReachStanding', label: 'Raihan Awal (Berdiri)', placeholder: 'Cm, contoh: 210' },
+          { key: 'vjReachMax', label: 'Lompatan Maksimal', placeholder: 'Cm, contoh: 265' }
+        ],
+        calculate: (vals) => {
+          const standing = Number(vals.vjReachStanding || 0);
+          const max = Number(vals.vjReachMax || 0);
+          if (standing <= 0 || max <= 0) return null;
+          if (max < standing) return null;
+          return max - standing;
+        },
+        summaryLabel: (vals) => {
+          const r = vals.vjReachStanding || '-';
+          const l = vals.vjReachMax || '-';
+          return `Berdiri: ${r} cm, Lompat: ${l} cm`;
+        }
+      }
+    };
+    const AGE_GROUPS = [
+      { key: '6-9', label: '6-9 Tahun', minAge: 6, maxAge: 9 },
+      { key: '10-12', label: '10-12 Tahun', minAge: 10, maxAge: 12 },
+      { key: '13-15', label: '13-15 Tahun', minAge: 13, maxAge: 15 },
+      { key: '16-19', label: '16-19 Tahun', minAge: 16, maxAge: 19 },
+      { key: '20-29', label: '20-29 Tahun', minAge: 20, maxAge: 29 },
+      { key: '30+', label: '30+ Tahun', minAge: 30, maxAge: 999 }
+    ];
+    const PREDIKAT_LIST = ['Sangat Baik', 'Baik', 'Sedang', 'Kurang', 'Sangat Kurang'];
+    const PREDIKAT_COLORS = { 'Sangat Baik': '#16a34a', 'Baik': '#65a30d', 'Sedang': '#ca8a04', 'Kurang': '#ea580c', 'Sangat Kurang': '#dc2626' };
+    // Default norma berdasarkan ilmu olahraga untuk atlet taekwondo per kelompok umur & jenis kelamin
+    const DEFAULT_NORMA_TES_FISIK = {
+      '6-9': {
+        Laki: {
+          pushUp: [{ predikat: 'Sangat Baik', min: 15, max: 99, color: '#16a34a' },{ predikat: 'Baik', min: 12, max: 14, color: '#65a30d' },{ predikat: 'Sedang', min: 9, max: 11, color: '#ca8a04' },{ predikat: 'Kurang', min: 5, max: 8, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: 0, max: 4, color: '#dc2626' }],
+          sitUp: [{ predikat: 'Sangat Baik', min: 20, max: 99, color: '#16a34a' },{ predikat: 'Baik', min: 16, max: 19, color: '#65a30d' },{ predikat: 'Sedang', min: 12, max: 15, color: '#ca8a04' },{ predikat: 'Kurang', min: 8, max: 11, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: 0, max: 7, color: '#dc2626' }],
+          bleepTest: [{ predikat: 'Sangat Baik', min: 42, max: 99, color: '#16a34a' },{ predikat: 'Baik', min: 38, max: 41, color: '#65a30d' },{ predikat: 'Sedang', min: 34, max: 37, color: '#ca8a04' },{ predikat: 'Kurang', min: 30, max: 33, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: 0, max: 29, color: '#dc2626' }],
+          illinoisRun: [{ predikat: 'Sangat Baik', min: 0, max: 18.0, color: '#16a34a' },{ predikat: 'Baik', min: 18.01, max: 19.5, color: '#65a30d' },{ predikat: 'Sedang', min: 19.51, max: 21.0, color: '#ca8a04' },{ predikat: 'Kurang', min: 21.01, max: 22.5, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: 22.51, max: 99, color: '#dc2626' }],
+          sprint20m: [{ predikat: 'Sangat Baik', min: 0, max: 4.2, color: '#16a34a' },{ predikat: 'Baik', min: 4.21, max: 4.5, color: '#65a30d' },{ predikat: 'Sedang', min: 4.51, max: 5.0, color: '#ca8a04' },{ predikat: 'Kurang', min: 5.01, max: 5.5, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: 5.51, max: 99, color: '#dc2626' }],
+          verticalJump: [{ predikat: 'Sangat Baik', min: 25, max: 99, color: '#16a34a' },{ predikat: 'Baik', min: 20, max: 24, color: '#65a30d' },{ predikat: 'Sedang', min: 15, max: 19, color: '#ca8a04' },{ predikat: 'Kurang', min: 10, max: 14, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: 0, max: 9, color: '#dc2626' }],
+          sitAndReach: [{ predikat: 'Sangat Baik', min: 20, max: 99, color: '#16a34a' },{ predikat: 'Baik', min: 14, max: 19, color: '#65a30d' },{ predikat: 'Sedang', min: 8, max: 13, color: '#ca8a04' },{ predikat: 'Kurang', min: 2, max: 7, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: -10, max: 1, color: '#dc2626' }]
+        },
+        Perempuan: {
+          pushUp: [{ predikat: 'Sangat Baik', min: 10, max: 99, color: '#16a34a' },{ predikat: 'Baik', min: 8, max: 9, color: '#65a30d' },{ predikat: 'Sedang', min: 6, max: 7, color: '#ca8a04' },{ predikat: 'Kurang', min: 3, max: 5, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: 0, max: 2, color: '#dc2626' }],
+          sitUp: [{ predikat: 'Sangat Baik', min: 15, max: 99, color: '#16a34a' },{ predikat: 'Baik', min: 12, max: 14, color: '#65a30d' },{ predikat: 'Sedang', min: 9, max: 11, color: '#ca8a04' },{ predikat: 'Kurang', min: 6, max: 8, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: 0, max: 5, color: '#dc2626' }],
+          bleepTest: [{ predikat: 'Sangat Baik', min: 39, max: 99, color: '#16a34a' },{ predikat: 'Baik', min: 35, max: 38, color: '#65a30d' },{ predikat: 'Sedang', min: 31, max: 34, color: '#ca8a04' },{ predikat: 'Kurang', min: 27, max: 30, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: 0, max: 26, color: '#dc2626' }],
+          illinoisRun: [{ predikat: 'Sangat Baik', min: 0, max: 19.0, color: '#16a34a' },{ predikat: 'Baik', min: 19.01, max: 20.5, color: '#65a30d' },{ predikat: 'Sedang', min: 20.51, max: 22.0, color: '#ca8a04' },{ predikat: 'Kurang', min: 22.01, max: 23.5, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: 23.51, max: 99, color: '#dc2626' }],
+          sprint20m: [{ predikat: 'Sangat Baik', min: 0, max: 4.5, color: '#16a34a' },{ predikat: 'Baik', min: 4.51, max: 4.8, color: '#65a30d' },{ predikat: 'Sedang', min: 4.81, max: 5.3, color: '#ca8a04' },{ predikat: 'Kurang', min: 5.31, max: 5.8, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: 5.81, max: 99, color: '#dc2626' }],
+          verticalJump: [{ predikat: 'Sangat Baik', min: 22, max: 99, color: '#16a34a' },{ predikat: 'Baik', min: 18, max: 21, color: '#65a30d' },{ predikat: 'Sedang', min: 13, max: 17, color: '#ca8a04' },{ predikat: 'Kurang', min: 8, max: 12, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: 0, max: 7, color: '#dc2626' }],
+          sitAndReach: [{ predikat: 'Sangat Baik', min: 23, max: 99, color: '#16a34a' },{ predikat: 'Baik', min: 17, max: 22, color: '#65a30d' },{ predikat: 'Sedang', min: 11, max: 16, color: '#ca8a04' },{ predikat: 'Kurang', min: 5, max: 10, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: -10, max: 4, color: '#dc2626' }]
+        }
+      },
+      '10-12': {
+        Laki: {
+          pushUp: [{ predikat: 'Sangat Baik', min: 25, max: 99, color: '#16a34a' },{ predikat: 'Baik', min: 20, max: 24, color: '#65a30d' },{ predikat: 'Sedang', min: 15, max: 19, color: '#ca8a04' },{ predikat: 'Kurang', min: 10, max: 14, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: 0, max: 9, color: '#dc2626' }],
+          sitUp: [{ predikat: 'Sangat Baik', min: 32, max: 99, color: '#16a34a' },{ predikat: 'Baik', min: 26, max: 31, color: '#65a30d' },{ predikat: 'Sedang', min: 20, max: 25, color: '#ca8a04' },{ predikat: 'Kurang', min: 14, max: 19, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: 0, max: 13, color: '#dc2626' }],
+          bleepTest: [{ predikat: 'Sangat Baik', min: 48, max: 99, color: '#16a34a' },{ predikat: 'Baik', min: 43, max: 47, color: '#65a30d' },{ predikat: 'Sedang', min: 38, max: 42, color: '#ca8a04' },{ predikat: 'Kurang', min: 33, max: 37, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: 0, max: 32, color: '#dc2626' }],
+          illinoisRun: [{ predikat: 'Sangat Baik', min: 0, max: 16.5, color: '#16a34a' },{ predikat: 'Baik', min: 16.51, max: 17.8, color: '#65a30d' },{ predikat: 'Sedang', min: 17.81, max: 19.2, color: '#ca8a04' },{ predikat: 'Kurang', min: 19.21, max: 20.5, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: 20.51, max: 99, color: '#dc2626' }],
+          sprint20m: [{ predikat: 'Sangat Baik', min: 0, max: 3.9, color: '#16a34a' },{ predikat: 'Baik', min: 3.91, max: 4.2, color: '#65a30d' },{ predikat: 'Sedang', min: 4.21, max: 4.5, color: '#ca8a04' },{ predikat: 'Kurang', min: 4.51, max: 4.9, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: 4.91, max: 99, color: '#dc2626' }],
+          verticalJump: [{ predikat: 'Sangat Baik', min: 35, max: 99, color: '#16a34a' },{ predikat: 'Baik', min: 29, max: 34, color: '#65a30d' },{ predikat: 'Sedang', min: 23, max: 28, color: '#ca8a04' },{ predikat: 'Kurang', min: 17, max: 22, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: 0, max: 16, color: '#dc2626' }],
+          sitAndReach: [{ predikat: 'Sangat Baik', min: 23, max: 99, color: '#16a34a' },{ predikat: 'Baik', min: 17, max: 22, color: '#65a30d' },{ predikat: 'Sedang', min: 11, max: 16, color: '#ca8a04' },{ predikat: 'Kurang', min: 5, max: 10, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: -10, max: 4, color: '#dc2626' }]
+        },
+        Perempuan: {
+          pushUp: [{ predikat: 'Sangat Baik', min: 18, max: 99, color: '#16a34a' },{ predikat: 'Baik', min: 14, max: 17, color: '#65a30d' },{ predikat: 'Sedang', min: 10, max: 13, color: '#ca8a04' },{ predikat: 'Kurang', min: 6, max: 9, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: 0, max: 5, color: '#dc2626' }],
+          sitUp: [{ predikat: 'Sangat Baik', min: 25, max: 99, color: '#16a34a' },{ predikat: 'Baik', min: 20, max: 24, color: '#65a30d' },{ predikat: 'Sedang', min: 15, max: 19, color: '#ca8a04' },{ predikat: 'Kurang', min: 10, max: 14, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: 0, max: 9, color: '#dc2626' }],
+          bleepTest: [{ predikat: 'Sangat Baik', min: 44, max: 99, color: '#16a34a' },{ predikat: 'Baik', min: 39, max: 43, color: '#65a30d' },{ predikat: 'Sedang', min: 35, max: 38, color: '#ca8a04' },{ predikat: 'Kurang', min: 31, max: 34, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: 0, max: 30, color: '#dc2626' }],
+          illinoisRun: [{ predikat: 'Sangat Baik', min: 0, max: 17.5, color: '#16a34a' },{ predikat: 'Baik', min: 17.51, max: 18.8, color: '#65a30d' },{ predikat: 'Sedang', min: 18.81, max: 20.2, color: '#ca8a04' },{ predikat: 'Kurang', min: 20.21, max: 21.5, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: 21.51, max: 99, color: '#dc2626' }],
+          sprint20m: [{ predikat: 'Sangat Baik', min: 0, max: 4.2, color: '#16a34a' },{ predikat: 'Baik', min: 4.21, max: 4.5, color: '#65a30d' },{ predikat: 'Sedang', min: 4.51, max: 4.8, color: '#ca8a04' },{ predikat: 'Kurang', min: 4.81, max: 5.2, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: 5.21, max: 99, color: '#dc2626' }],
+          verticalJump: [{ predikat: 'Sangat Baik', min: 30, max: 99, color: '#16a34a' },{ predikat: 'Baik', min: 25, max: 29, color: '#65a30d' },{ predikat: 'Sedang', min: 19, max: 24, color: '#ca8a04' },{ predikat: 'Kurang', min: 14, max: 18, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: 0, max: 13, color: '#dc2626' }],
+          sitAndReach: [{ predikat: 'Sangat Baik', min: 26, max: 99, color: '#16a34a' },{ predikat: 'Baik', min: 20, max: 25, color: '#65a30d' },{ predikat: 'Sedang', min: 14, max: 19, color: '#ca8a04' },{ predikat: 'Kurang', min: 8, max: 13, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: -10, max: 7, color: '#dc2626' }]
+        }
+      },
+      '13-15': {
+        Laki: {
+          pushUp: [{ predikat: 'Sangat Baik', min: 35, max: 99, color: '#16a34a' },{ predikat: 'Baik', min: 28, max: 34, color: '#65a30d' },{ predikat: 'Sedang', min: 21, max: 27, color: '#ca8a04' },{ predikat: 'Kurang', min: 15, max: 20, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: 0, max: 14, color: '#dc2626' }],
+          sitUp: [{ predikat: 'Sangat Baik', min: 40, max: 99, color: '#16a34a' },{ predikat: 'Baik', min: 33, max: 39, color: '#65a30d' },{ predikat: 'Sedang', min: 26, max: 32, color: '#ca8a04' },{ predikat: 'Kurang', min: 18, max: 25, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: 0, max: 17, color: '#dc2626' }],
+          bleepTest: [{ predikat: 'Sangat Baik', min: 54, max: 99, color: '#16a34a' },{ predikat: 'Baik', min: 48, max: 53, color: '#65a30d' },{ predikat: 'Sedang', min: 42, max: 47, color: '#ca8a04' },{ predikat: 'Kurang', min: 37, max: 41, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: 0, max: 36, color: '#dc2626' }],
+          illinoisRun: [{ predikat: 'Sangat Baik', min: 0, max: 15.5, color: '#16a34a' },{ predikat: 'Baik', min: 15.51, max: 16.8, color: '#65a30d' },{ predikat: 'Sedang', min: 16.81, max: 18.0, color: '#ca8a04' },{ predikat: 'Kurang', min: 18.01, max: 19.5, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: 19.51, max: 99, color: '#dc2626' }],
+          sprint20m: [{ predikat: 'Sangat Baik', min: 0, max: 3.6, color: '#16a34a' },{ predikat: 'Baik', min: 3.61, max: 3.9, color: '#65a30d' },{ predikat: 'Sedang', min: 3.91, max: 4.2, color: '#ca8a04' },{ predikat: 'Kurang', min: 4.21, max: 4.5, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: 4.51, max: 99, color: '#dc2626' }],
+          verticalJump: [{ predikat: 'Sangat Baik', min: 45, max: 99, color: '#16a34a' },{ predikat: 'Baik', min: 38, max: 44, color: '#65a30d' },{ predikat: 'Sedang', min: 30, max: 37, color: '#ca8a04' },{ predikat: 'Kurang', min: 23, max: 29, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: 0, max: 22, color: '#dc2626' }],
+          sitAndReach: [{ predikat: 'Sangat Baik', min: 25, max: 99, color: '#16a34a' },{ predikat: 'Baik', min: 19, max: 24, color: '#65a30d' },{ predikat: 'Sedang', min: 13, max: 18, color: '#ca8a04' },{ predikat: 'Kurang', min: 7, max: 12, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: -10, max: 6, color: '#dc2626' }]
+        },
+        Perempuan: {
+          pushUp: [{ predikat: 'Sangat Baik', min: 22, max: 99, color: '#16a34a' },{ predikat: 'Baik', min: 17, max: 21, color: '#65a30d' },{ predikat: 'Sedang', min: 13, max: 16, color: '#ca8a04' },{ predikat: 'Kurang', min: 8, max: 12, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: 0, max: 7, color: '#dc2626' }],
+          sitUp: [{ predikat: 'Sangat Baik', min: 32, max: 99, color: '#16a34a' },{ predikat: 'Baik', min: 26, max: 31, color: '#65a30d' },{ predikat: 'Sedang', min: 20, max: 25, color: '#ca8a04' },{ predikat: 'Kurang', min: 14, max: 19, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: 0, max: 13, color: '#dc2626' }],
+          bleepTest: [{ predikat: 'Sangat Baik', min: 48, max: 99, color: '#16a34a' },{ predikat: 'Baik', min: 43, max: 47, color: '#65a30d' },{ predikat: 'Sedang', min: 38, max: 42, color: '#ca8a04' },{ predikat: 'Kurang', min: 34, max: 37, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: 0, max: 33, color: '#dc2626' }],
+          illinoisRun: [{ predikat: 'Sangat Baik', min: 0, max: 16.5, color: '#16a34a' },{ predikat: 'Baik', min: 16.51, max: 17.8, color: '#65a30d' },{ predikat: 'Sedang', min: 17.81, max: 19.0, color: '#ca8a04' },{ predikat: 'Kurang', min: 19.01, max: 20.5, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: 20.51, max: 99, color: '#dc2626' }],
+          sprint20m: [{ predikat: 'Sangat Baik', min: 0, max: 4.0, color: '#16a34a' },{ predikat: 'Baik', min: 4.01, max: 4.3, color: '#65a30d' },{ predikat: 'Sedang', min: 4.31, max: 4.6, color: '#ca8a04' },{ predikat: 'Kurang', min: 4.61, max: 4.9, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: 4.91, max: 99, color: '#dc2626' }],
+          verticalJump: [{ predikat: 'Sangat Baik', min: 35, max: 99, color: '#16a34a' },{ predikat: 'Baik', min: 29, max: 34, color: '#65a30d' },{ predikat: 'Sedang', min: 22, max: 28, color: '#ca8a04' },{ predikat: 'Kurang', min: 16, max: 21, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: 0, max: 15, color: '#dc2626' }],
+          sitAndReach: [{ predikat: 'Sangat Baik', min: 28, max: 99, color: '#16a34a' },{ predikat: 'Baik', min: 22, max: 27, color: '#65a30d' },{ predikat: 'Sedang', min: 16, max: 21, color: '#ca8a04' },{ predikat: 'Kurang', min: 10, max: 15, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: -10, max: 9, color: '#dc2626' }]
+        }
+      },
+      '16-19': {
+        Laki: {
+          pushUp: [{ predikat: 'Sangat Baik', min: 45, max: 99, color: '#16a34a' },{ predikat: 'Baik', min: 36, max: 44, color: '#65a30d' },{ predikat: 'Sedang', min: 26, max: 35, color: '#ca8a04' },{ predikat: 'Kurang', min: 18, max: 25, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: 0, max: 17, color: '#dc2626' }],
+          sitUp: [{ predikat: 'Sangat Baik', min: 48, max: 99, color: '#16a34a' },{ predikat: 'Baik', min: 40, max: 47, color: '#65a30d' },{ predikat: 'Sedang', min: 32, max: 39, color: '#ca8a04' },{ predikat: 'Kurang', min: 24, max: 31, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: 0, max: 23, color: '#dc2626' }],
+          bleepTest: [{ predikat: 'Sangat Baik', min: 58, max: 99, color: '#16a34a' },{ predikat: 'Baik', min: 52, max: 57, color: '#65a30d' },{ predikat: 'Sedang', min: 46, max: 51, color: '#ca8a04' },{ predikat: 'Kurang', min: 40, max: 45, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: 0, max: 39, color: '#dc2626' }],
+          illinoisRun: [{ predikat: 'Sangat Baik', min: 0, max: 15.0, color: '#16a34a' },{ predikat: 'Baik', min: 15.01, max: 16.0, color: '#65a30d' },{ predikat: 'Sedang', min: 16.01, max: 17.2, color: '#ca8a04' },{ predikat: 'Kurang', min: 17.21, max: 18.5, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: 18.51, max: 99, color: '#dc2626' }],
+          sprint20m: [{ predikat: 'Sangat Baik', min: 0, max: 3.4, color: '#16a34a' },{ predikat: 'Baik', min: 3.41, max: 3.7, color: '#65a30d' },{ predikat: 'Sedang', min: 3.71, max: 4.0, color: '#ca8a04' },{ predikat: 'Kurang', min: 4.01, max: 4.3, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: 4.31, max: 99, color: '#dc2626' }],
+          verticalJump: [{ predikat: 'Sangat Baik', min: 55, max: 99, color: '#16a34a' },{ predikat: 'Baik', min: 47, max: 54, color: '#65a30d' },{ predikat: 'Sedang', min: 38, max: 46, color: '#ca8a04' },{ predikat: 'Kurang', min: 30, max: 37, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: 0, max: 29, color: '#dc2626' }],
+          sitAndReach: [{ predikat: 'Sangat Baik', min: 27, max: 99, color: '#16a34a' },{ predikat: 'Baik', min: 21, max: 26, color: '#65a30d' },{ predikat: 'Sedang', min: 15, max: 20, color: '#ca8a04' },{ predikat: 'Kurang', min: 9, max: 14, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: -10, max: 8, color: '#dc2626' }]
+        },
+        Perempuan: {
+          pushUp: [{ predikat: 'Sangat Baik', min: 28, max: 99, color: '#16a34a' },{ predikat: 'Baik', min: 22, max: 27, color: '#65a30d' },{ predikat: 'Sedang', min: 16, max: 21, color: '#ca8a04' },{ predikat: 'Kurang', min: 10, max: 15, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: 0, max: 9, color: '#dc2626' }],
+          sitUp: [{ predikat: 'Sangat Baik', min: 38, max: 99, color: '#16a34a' },{ predikat: 'Baik', min: 31, max: 37, color: '#65a30d' },{ predikat: 'Sedang', min: 24, max: 30, color: '#ca8a04' },{ predikat: 'Kurang', min: 16, max: 23, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: 0, max: 15, color: '#dc2626' }],
+          bleepTest: [{ predikat: 'Sangat Baik', min: 50, max: 99, color: '#16a34a' },{ predikat: 'Baik', min: 45, max: 49, color: '#65a30d' },{ predikat: 'Sedang', min: 40, max: 44, color: '#ca8a04' },{ predikat: 'Kurang', min: 36, max: 39, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: 0, max: 35, color: '#dc2626' }],
+          illinoisRun: [{ predikat: 'Sangat Baik', min: 0, max: 16.0, color: '#16a34a' },{ predikat: 'Baik', min: 16.01, max: 17.0, color: '#65a30d' },{ predikat: 'Sedang', min: 17.01, max: 18.2, color: '#ca8a04' },{ predikat: 'Kurang', min: 18.21, max: 19.5, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: 19.51, max: 99, color: '#dc2626' }],
+          sprint20m: [{ predikat: 'Sangat Baik', min: 0, max: 3.8, color: '#16a34a' },{ predikat: 'Baik', min: 3.81, max: 4.1, color: '#65a30d' },{ predikat: 'Sedang', min: 4.11, max: 4.4, color: '#ca8a04' },{ predikat: 'Kurang', min: 4.41, max: 4.7, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: 4.71, max: 99, color: '#dc2626' }],
+          verticalJump: [{ predikat: 'Sangat Baik', min: 40, max: 99, color: '#16a34a' },{ predikat: 'Baik', min: 34, max: 39, color: '#65a30d' },{ predikat: 'Sedang', min: 27, max: 33, color: '#ca8a04' },{ predikat: 'Kurang', min: 20, max: 26, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: 0, max: 19, color: '#dc2626' }],
+          sitAndReach: [{ predikat: 'Sangat Baik', min: 30, max: 99, color: '#16a34a' },{ predikat: 'Baik', min: 24, max: 29, color: '#65a30d' },{ predikat: 'Sedang', min: 18, max: 23, color: '#ca8a04' },{ predikat: 'Kurang', min: 12, max: 17, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: -10, max: 11, color: '#dc2626' }]
+        }
+      },
+      '20-29': {
+        Laki: {
+          pushUp: [{ predikat: 'Sangat Baik', min: 50, max: 99, color: '#16a34a' },{ predikat: 'Baik', min: 40, max: 49, color: '#65a30d' },{ predikat: 'Sedang', min: 30, max: 39, color: '#ca8a04' },{ predikat: 'Kurang', min: 20, max: 29, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: 0, max: 19, color: '#dc2626' }],
+          sitUp: [{ predikat: 'Sangat Baik', min: 50, max: 99, color: '#16a34a' },{ predikat: 'Baik', min: 42, max: 49, color: '#65a30d' },{ predikat: 'Sedang', min: 34, max: 41, color: '#ca8a04' },{ predikat: 'Kurang', min: 25, max: 33, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: 0, max: 24, color: '#dc2626' }],
+          bleepTest: [{ predikat: 'Sangat Baik', min: 55, max: 99, color: '#16a34a' },{ predikat: 'Baik', min: 50, max: 54, color: '#65a30d' },{ predikat: 'Sedang', min: 44, max: 49, color: '#ca8a04' },{ predikat: 'Kurang', min: 38, max: 43, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: 0, max: 37, color: '#dc2626' }],
+          illinoisRun: [{ predikat: 'Sangat Baik', min: 0, max: 16.0, color: '#16a34a' },{ predikat: 'Baik', min: 16.01, max: 17.2, color: '#65a30d' },{ predikat: 'Sedang', min: 17.21, max: 18.5, color: '#ca8a04' },{ predikat: 'Kurang', min: 18.51, max: 19.8, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: 19.81, max: 99, color: '#dc2626' }],
+          sprint20m: [{ predikat: 'Sangat Baik', min: 0, max: 3.5, color: '#16a34a' },{ predikat: 'Baik', min: 3.51, max: 3.8, color: '#65a30d' },{ predikat: 'Sedang', min: 3.81, max: 4.1, color: '#ca8a04' },{ predikat: 'Kurang', min: 4.11, max: 4.4, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: 4.41, max: 99, color: '#dc2626' }],
+          verticalJump: [{ predikat: 'Sangat Baik', min: 55, max: 99, color: '#16a34a' },{ predikat: 'Baik', min: 48, max: 54, color: '#65a30d' },{ predikat: 'Sedang', min: 40, max: 47, color: '#ca8a04' },{ predikat: 'Kurang', min: 32, max: 39, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: 0, max: 31, color: '#dc2626' }],
+          sitAndReach: [{ predikat: 'Sangat Baik', min: 25, max: 99, color: '#16a34a' },{ predikat: 'Baik', min: 19, max: 24, color: '#65a30d' },{ predikat: 'Sedang', min: 13, max: 18, color: '#ca8a04' },{ predikat: 'Kurang', min: 7, max: 12, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: -10, max: 6, color: '#dc2626' }]
+        },
+        Perempuan: {
+          pushUp: [{ predikat: 'Sangat Baik', min: 32, max: 99, color: '#16a34a' },{ predikat: 'Baik', min: 25, max: 31, color: '#65a30d' },{ predikat: 'Sedang', min: 18, max: 24, color: '#ca8a04' },{ predikat: 'Kurang', min: 12, max: 17, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: 0, max: 11, color: '#dc2626' }],
+          sitUp: [{ predikat: 'Sangat Baik', min: 40, max: 99, color: '#16a34a' },{ predikat: 'Baik', min: 33, max: 39, color: '#65a30d' },{ predikat: 'Sedang', min: 26, max: 32, color: '#ca8a04' },{ predikat: 'Kurang', min: 18, max: 25, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: 0, max: 17, color: '#dc2626' }],
+          bleepTest: [{ predikat: 'Sangat Baik', min: 48, max: 99, color: '#16a34a' },{ predikat: 'Baik', min: 43, max: 47, color: '#65a30d' },{ predikat: 'Sedang', min: 38, max: 42, color: '#ca8a04' },{ predikat: 'Kurang', min: 34, max: 37, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: 0, max: 33, color: '#dc2626' }],
+          illinoisRun: [{ predikat: 'Sangat Baik', min: 0, max: 17.5, color: '#16a34a' },{ predikat: 'Baik', min: 17.51, max: 18.8, color: '#65a30d' },{ predikat: 'Sedang', min: 18.81, max: 20.0, color: '#ca8a04' },{ predikat: 'Kurang', min: 20.01, max: 21.5, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: 21.51, max: 99, color: '#dc2626' }],
+          sprint20m: [{ predikat: 'Sangat Baik', min: 0, max: 4.0, color: '#16a34a' },{ predikat: 'Baik', min: 4.01, max: 4.3, color: '#65a30d' },{ predikat: 'Sedang', min: 4.31, max: 4.6, color: '#ca8a04' },{ predikat: 'Kurang', min: 4.61, max: 4.9, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: 4.91, max: 99, color: '#dc2626' }],
+          verticalJump: [{ predikat: 'Sangat Baik', min: 40, max: 99, color: '#16a34a' },{ predikat: 'Baik', min: 34, max: 39, color: '#65a30d' },{ predikat: 'Sedang', min: 27, max: 33, color: '#ca8a04' },{ predikat: 'Kurang', min: 20, max: 26, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: 0, max: 19, color: '#dc2626' }],
+          sitAndReach: [{ predikat: 'Sangat Baik', min: 28, max: 99, color: '#16a34a' },{ predikat: 'Baik', min: 22, max: 27, color: '#65a30d' },{ predikat: 'Sedang', min: 16, max: 21, color: '#ca8a04' },{ predikat: 'Kurang', min: 10, max: 15, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: -10, max: 9, color: '#dc2626' }]
+        }
+      },
+      '30+': {
+        Laki: {
+          pushUp: [{ predikat: 'Sangat Baik', min: 40, max: 99, color: '#16a34a' },{ predikat: 'Baik', min: 30, max: 39, color: '#65a30d' },{ predikat: 'Sedang', min: 22, max: 29, color: '#ca8a04' },{ predikat: 'Kurang', min: 15, max: 21, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: 0, max: 14, color: '#dc2626' }],
+          sitUp: [{ predikat: 'Sangat Baik', min: 42, max: 99, color: '#16a34a' },{ predikat: 'Baik', min: 34, max: 41, color: '#65a30d' },{ predikat: 'Sedang', min: 26, max: 33, color: '#ca8a04' },{ predikat: 'Kurang', min: 18, max: 25, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: 0, max: 17, color: '#dc2626' }],
+          bleepTest: [{ predikat: 'Sangat Baik', min: 48, max: 99, color: '#16a34a' },{ predikat: 'Baik', min: 43, max: 47, color: '#65a30d' },{ predikat: 'Sedang', min: 38, max: 42, color: '#ca8a04' },{ predikat: 'Kurang', min: 34, max: 37, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: 0, max: 33, color: '#dc2626' }],
+          illinoisRun: [{ predikat: 'Sangat Baik', min: 0, max: 18.0, color: '#16a34a' },{ predikat: 'Baik', min: 18.01, max: 19.5, color: '#65a30d' },{ predikat: 'Sedang', min: 19.51, max: 21.0, color: '#ca8a04' },{ predikat: 'Kurang', min: 21.01, max: 22.5, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: 22.51, max: 99, color: '#dc2626' }],
+          sprint20m: [{ predikat: 'Sangat Baik', min: 0, max: 4.0, color: '#16a34a' },{ predikat: 'Baik', min: 4.01, max: 4.3, color: '#65a30d' },{ predikat: 'Sedang', min: 4.31, max: 4.7, color: '#ca8a04' },{ predikat: 'Kurang', min: 4.71, max: 5.1, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: 5.11, max: 99, color: '#dc2626' }],
+          verticalJump: [{ predikat: 'Sangat Baik', min: 45, max: 99, color: '#16a34a' },{ predikat: 'Baik', min: 38, max: 44, color: '#65a30d' },{ predikat: 'Sedang', min: 30, max: 37, color: '#ca8a04' },{ predikat: 'Kurang', min: 22, max: 29, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: 0, max: 21, color: '#dc2626' }],
+          sitAndReach: [{ predikat: 'Sangat Baik', min: 20, max: 99, color: '#16a34a' },{ predikat: 'Baik', min: 14, max: 19, color: '#65a30d' },{ predikat: 'Sedang', min: 8, max: 13, color: '#ca8a04' },{ predikat: 'Kurang', min: 2, max: 7, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: -10, max: 1, color: '#dc2626' }]
+        },
+        Perempuan: {
+          pushUp: [{ predikat: 'Sangat Baik', min: 25, max: 99, color: '#16a34a' },{ predikat: 'Baik', min: 19, max: 24, color: '#65a30d' },{ predikat: 'Sedang', min: 13, max: 18, color: '#ca8a04' },{ predikat: 'Kurang', min: 8, max: 12, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: 0, max: 7, color: '#dc2626' }],
+          sitUp: [{ predikat: 'Sangat Baik', min: 33, max: 99, color: '#16a34a' },{ predikat: 'Baik', min: 26, max: 32, color: '#65a30d' },{ predikat: 'Sedang', min: 20, max: 25, color: '#ca8a04' },{ predikat: 'Kurang', min: 14, max: 19, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: 0, max: 13, color: '#dc2626' }],
+          bleepTest: [{ predikat: 'Sangat Baik', min: 42, max: 99, color: '#16a34a' },{ predikat: 'Baik', min: 38, max: 41, color: '#65a30d' },{ predikat: 'Sedang', min: 34, max: 37, color: '#ca8a04' },{ predikat: 'Kurang', min: 30, max: 33, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: 0, max: 29, color: '#dc2626' }],
+          illinoisRun: [{ predikat: 'Sangat Baik', min: 0, max: 19.5, color: '#16a34a' },{ predikat: 'Baik', min: 19.51, max: 21.0, color: '#65a30d' },{ predikat: 'Sedang', min: 21.01, max: 22.5, color: '#ca8a04' },{ predikat: 'Kurang', min: 22.51, max: 24.0, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: 24.01, max: 99, color: '#dc2626' }],
+          sprint20m: [{ predikat: 'Sangat Baik', min: 0, max: 4.5, color: '#16a34a' },{ predikat: 'Baik', min: 4.51, max: 4.8, color: '#65a30d' },{ predikat: 'Sedang', min: 4.81, max: 5.2, color: '#ca8a04' },{ predikat: 'Kurang', min: 5.21, max: 5.6, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: 5.61, max: 99, color: '#dc2626' }],
+          verticalJump: [{ predikat: 'Sangat Baik', min: 33, max: 99, color: '#16a34a' },{ predikat: 'Baik', min: 27, max: 32, color: '#65a30d' },{ predikat: 'Sedang', min: 21, max: 26, color: '#ca8a04' },{ predikat: 'Kurang', min: 14, max: 20, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: 0, max: 13, color: '#dc2626' }],
+          sitAndReach: [{ predikat: 'Sangat Baik', min: 23, max: 99, color: '#16a34a' },{ predikat: 'Baik', min: 17, max: 22, color: '#65a30d' },{ predikat: 'Sedang', min: 11, max: 16, color: '#ca8a04' },{ predikat: 'Kurang', min: 5, max: 10, color: '#ea580c' },{ predikat: 'Sangat Kurang', min: -10, max: 4, color: '#dc2626' }]
+        }
+      }
+    };
+    function normalizeTestValue(testKey, value, gender, age, normaData) {
+      const source = normaData || DEFAULT_NORMA_TES_FISIK;
+      const ag = getAgeGroup(age);
+      const g = (gender === 'Perempuan') ? 'Perempuan' : 'Laki';
+      const norms = source[ag] && source[ag][g] && source[ag][g][testKey];
+      if (!norms || value === null || value === undefined) return null;
+      const item = [...TES_FISIK_ITEMS].find(t => t.key === testKey);
+      const isLower = item && item.type === 'lower_better';
+      const sbNorm = norms.find(n => n.predikat === 'Sangat Baik');
+      const skNorm = norms.find(n => n.predikat === 'Sangat Kurang');
+      if (!sbNorm || !skNorm) return null;
+      let minVal, maxVal;
+      if (isLower) { minVal = skNorm.max; maxVal = sbNorm.max; }
+      else { minVal = skNorm.min; maxVal = sbNorm.min; }
+      if (maxVal === minVal) return 50;
+      let pct = ((Number(value) - minVal) / (maxVal - minVal)) * 100;
+      return Math.max(0, Math.min(100, Math.round(pct)));
+    }
+        function getAgeGroup(age) {
+      if (!age || isNaN(Number(age))) return '20-29';
+      const a = Number(age);
+      if (a >= 6 && a <= 9) return '6-9';
+      if (a >= 10 && a <= 12) return '10-12';
+      if (a >= 13 && a <= 15) return '13-15';
+      if (a >= 16 && a <= 19) return '16-19';
+      if (a >= 20 && a <= 29) return '20-29';
+      return '30+';
+    }
+    function calculateAge(dateOfBirth, referenceDate) {
+      if (!dateOfBirth) return null;
+      const ref = referenceDate ? new Date(referenceDate) : new Date();
+      const birth = new Date(dateOfBirth);
+      if (isNaN(birth.getTime())) return null;
+      let age = ref.getFullYear() - birth.getFullYear();
+      const m = ref.getMonth() - birth.getMonth();
+      if (m < 0 || (m === 0 && ref.getDate() < birth.getDate())) age--;
+      return Math.max(0, age);
+    }
+    function getAthleteAge(athlete, referenceDate) {
+      if (athlete.age && !isNaN(Number(athlete.age))) return Number(athlete.age);
+      return calculateAge(athlete.dateOfBirth, referenceDate);
+    }
+    function getNormaPredikat(testKey, gender, age, value, normaData) {
+      const g = (gender === 'Perempuan') ? 'Perempuan' : 'Laki';
+      const ag = getAgeGroup(age);
+      const source = normaData || DEFAULT_NORMA_TES_FISIK;
+      const norms = source[ag]?.[g]?.[testKey];
+      if (!norms) return { predikat: '-', color: '#9ca3af' };
+      const numVal = Number(value);
+      for (const n of norms) {
+        if (numVal >= n.min && numVal <= n.max) return n;
+      }
+      return { predikat: '-', color: '#9ca3af' };
+    }
+    function buildNormaFromDocs(docs) {
+      const result = {};
+      AGE_GROUPS.forEach(ag => { result[ag.key] = {}; ['Laki','Perempuan'].forEach(g => { result[ag.key][g] = {}; }); });
+      if (docs && docs.length > 0) {
+        docs.forEach(doc => {
+          const { ageGroup, gender, testKey, norms } = doc;
+          if (result[ageGroup] && result[ageGroup][gender]) {
+            result[ageGroup][gender][testKey] = norms;
+          }
+        });
+      }
+      return result;
+    }
+    function TesFisikView({ user, users, physicalTests, physicalNorms, addPhysicalTest, updatePhysicalTest, deletePhysicalTest, addPhysicalNorm, updatePhysicalNorm, customTestTypes, addCustomTestType, updateCustomTestType, deleteCustomTestType, triggerToast, isFeatureAllowed, featureSettings }) {
+      const [viewMode, setViewMode] = useState('list');
+      const [selectedAthleteId, setSelectedAthleteId] = useState(null);
+      const [selectedTestKeys, setSelectedTestKeys] = useState([]);
+      const [showNorma, setShowNorma] = useState(false);
+      const [showInputForm, setShowInputForm] = useState(false);
+      const [formSelectedAthleteId, setFormSelectedAthleteId] = useState('');
+      const [filterClub, setFilterClub] = useState(user.role === 'super_admin' ? 'Semua Club' : user.club);
+      const chartRef = React.useRef(null);
+      const chartRef2 = React.useRef(null);
+      const chartInstanceRef = React.useRef(null);
+      const chartInstanceRef2 = React.useRef(null);
+      const chartRef3 = React.useRef(null);
+      const chartInstanceRef3 = React.useRef(null);
+      const [chartMode, setChartMode] = useState('radar');
+      const [profileTestId, setProfileTestId] = useState(null);
+      const canInput = user.role === 'super_admin' || user.role === 'pengurus_club';
+      const isPelatih = user.role === 'pelatih';
+      const canEditNorma = canInput;
+      const normaData = React.useMemo(() => buildNormaFromDocs(physicalNorms), [physicalNorms]);
+      const effectiveTests = React.useMemo(() => {
+        const custom = (customTestTypes || []).map(ct => ({ key: ct.key, label: ct.label, unit: ct.unit || '', description: ct.description || '', type: ct.type || 'higher_better' }));
+        return [...TES_FISIK_ITEMS, ...custom];
+      }, [customTestTypes]);
+      const [showAddTest, setShowAddTest] = useState(false);
+      const [newTestKey, setNewTestKey] = useState('');
+      const [newTestLabel, setNewTestLabel] = useState('');
+      const [newTestUnit, setNewTestUnit] = useState('');
+      const [newTestDesc, setNewTestDesc] = useState('');
+      const [newTestType, setNewTestType] = useState('higher_better');
+      const [showEditNorma, setShowEditNorma] = useState(false);
+      const [editNormaAgeGroup, setEditNormaAgeGroup] = useState(AGE_GROUPS[4].key);
+      const [editNormaGender, setEditNormaGender] = useState('Laki');
+      const [editNormaTestKey, setEditNormaTestKey] = useState(effectiveTests[0].key);
+      const [editNormaValues, setEditNormaValues] = useState([]);
+      const [editingTest, setEditingTest] = useState(null);
+      const [showRanking, setShowRanking] = useState(false);
+      const [rankingFilterAge, setRankingFilterAge] = useState('Semua');
+      const [rankingFilterGender, setRankingFilterGender] = useState('Semua');
+      const [rankingFilterTest, setRankingFilterTest] = useState(effectiveTests[0]?.key || 'pushUp');
+      const athleteUsers = users.filter(u => u.role === 'atlet' && u.status !== 'Nonaktif');
+      const clubs = [...new Set(athleteUsers.map(u => u.club))];
+      const filteredAthletes = filterClub === 'Semua Club' ? athleteUsers : athleteUsers.filter(u => u.club === filterClub);
+      const sortedTests = [...physicalTests].sort((a, b) => {
+        const da = a.testDate || '';
+        const db2 = b.testDate || '';
+        return db2.localeCompare(da);
+      });
+      const getAthleteTests = (athleteId) => sortedTests.filter(t => Number(t.athleteId) === Number(athleteId));
+      const handleSaveTest = (e) => {
+        e.preventDefault();
+        const form = e.target;
+        const athleteId = Number(form.athleteId.value);
+        const testDate = form.testDate.value;
+        if (!athleteId || !testDate) { triggerToast('Pilih atlet dan tanggal terlebih dahulu!', 'error'); return; }
+        const athlete = users.find(u => u.id === athleteId);
+        if (!athlete) { triggerToast('Atlet tidak ditemukan!', 'error'); return; }
+        const computedAge = getAthleteAge(athlete, testDate);
+        const results = {};
+        const compositeRaw = {};
+        effectiveTests.forEach(item => {
+          const comp = COMPOSITE_TESTS[item.key];
+          if (comp) {
+            const vals = {};
+            comp.fields.forEach(f => {
+              const v = form[f.key] ? form[f.key].value : '';
+              if (v !== '' && v !== undefined) vals[f.key] = v;
+            });
+            if (Object.keys(vals).length > 0) {
+              compositeRaw[item.key] = vals;
+              const calculated = comp.calculate(vals, computedAge);
+              if (calculated !== null) results[item.key] = calculated;
+            }
+          } else {
+            const val = form[item.key] ? form[item.key].value : '';
+            if (val !== '' && val !== undefined) results[item.key] = Number(val);
+          }
+        });
+        if (Object.keys(results).length === 0) { triggerToast('Isi minimal satu tes fisik!', 'error'); return; }
+        const idStr = `${testDate}_${athleteId}`;
+        const extraData = { _compositeRaw: compositeRaw };
+        const existing = physicalTests.find(t => t.id === idStr);
+        if (existing) {
+          updatePhysicalTest(idStr, { ...existing, ...results, ...extraData, athleteId, athleteName: athlete.name, athleteGender: athlete.gender, athleteAge: computedAge, athleteClub: athlete.club, athleteSabuk: athlete.sabuk, testDate, updatedBy: user.name, updatedAt: new Date().toISOString() });
+          triggerToast('Hasil tes fisik diperbarui!');
+        } else {
+          addPhysicalTest({ id: idStr, athleteId, athleteName: athlete.name, athleteGender: athlete.gender, athleteAge: computedAge, athleteClub: athlete.club, athleteSabuk: athlete.sabuk, testDate, ...results, ...extraData, inputBy: user.name, inputByRole: user.role, createdAt: new Date().toISOString() });
+          triggerToast('Hasil tes fisik berhasil disimpan!');
+        }
+        setShowInputForm(false);
+        setEditingTest(null);
+      };
+      const handleDeleteTest = (testId) => {
+        if (window.confirm('Hapus data tes fisik ini?')) {
+          deletePhysicalTest(testId);
+          triggerToast('Data tes fisik dihapus.');
+          if (selectedAthleteId) {
+            const remaining = getAthleteTests(selectedAthleteId);
+            if (remaining.length === 0) { setSelectedAthleteId(null); setViewMode('list'); }
+          }
+        }
+      };
+      const handleEditTest = (test) => {
+        setEditingTest(test);
+        setFormSelectedAthleteId(String(test.athleteId));
+        setShowInputForm(true);
+      };
+      const handleCancelEdit = () => {
+        setEditingTest(null);
+        setFormSelectedAthleteId('');
+        setShowInputForm(false);
+        setEditingTest(null);
+      };
+      const handlePrintTest = (athleteId, testKeysToPrint) => {
+        const ath = users.find(u => u.id === athleteId);
+        if (!ath) return;
+        const athTests = getAthleteTests(athleteId);
+        const athAge = getAthleteAge(ath);
+        const athAgKey = getAgeGroup(athAge);
+        const athAgLabel = AGE_GROUPS.find(ag => ag.key === athAgKey)?.label || athAgKey;
+        const keys = testKeysToPrint || effectiveTests.map(t => t.key);
+        const printWin = window.open('', '_blank', 'width=800,height=900');
+        if (!printWin) { triggerToast('Pop-up diblokir! Izinkan pop-up untuk print.', 'error'); return; }
+        let tableRows = '';
+        athTests.forEach(test => {
+          const tDate = new Date(test.testDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+          let cols = '';
+          keys.forEach(k => {
+            const itm = effectiveTests.find(i => i.key === k);
+            const v = test[k];
+            if (v === undefined || v === null) { cols += '<td style="padding:4px 6px;font-size:10px;border:1px solid #ddd;color:#999;text-align:center;">-</td>'; return; }
+            const norm = getNormaPredikat(k, test.athleteGender || ath.gender, athAge || test.athleteAge, v, normaData);
+            cols += '<td style="padding:4px 6px;font-size:11px;border:1px solid #ddd;text-align:center;font-weight:700;">' + v + ' <span style="font-size:8px;color:#888;">' + (itm ? itm.unit : '') + '</span><br/><span style="font-size:8px;color:' + norm.color + ';font-weight:800;">' + norm.predikat + '</span></td>';
+          });
+          tableRows += '<tr><td style="padding:4px 6px;font-size:10px;border:1px solid #ddd;font-weight:600;">' + tDate + '</td>' + cols + '</tr>';
+        });
+        let headerCols = '';
+        keys.forEach(k => {
+          const itm = effectiveTests.find(i => i.key === k);
+          headerCols += '<th style="padding:5px 6px;font-size:9px;border:1px solid #ddd;background:#dc2626;color:#fff;text-align:center;white-space:nowrap;">' + (itm ? itm.label : k) + '</th>';
+        });
+        printWin.document.write('<!DOCTYPE html><html><head><title>Hasil Tes Fisik - ' + ath.name + '</title><style>@media print{body{margin:0;} .no-print{display:none!important;}}</style></head><body style="font-family:Arial,sans-serif;padding:20px;color:#333;">');
+        printWin.document.write('<div style="text-align:center;border-bottom:3px double #dc2626;padding-bottom:10px;margin-bottom:15px;">');
+        printWin.document.write('<div style="font-size:16px;font-weight:900;color:#dc2626;">TAEKWONDO INDONESIA</div>');
+        printWin.document.write('<div style="font-size:11px;color:#666;">KABUPATEN MUSI RAWAS - SUMATERA SELATAN</div>');
+        printWin.document.write('<div style="font-size:13px;font-weight:800;margin-top:10px;">HASIL TES FISIK ATLET</div></div>');
+        printWin.document.write('<table style="width:100%;border-collapse:collapse;margin-bottom:15px;font-size:11px;"><tr><td style="padding:3px 0;width:120px;color:#666;">Nama Atlet</td><td style="padding:3px 0;font-weight:800;">: ' + ath.name + '</td></tr>');
+        printWin.document.write('<tr><td style="padding:3px 0;color:#666;">Club</td><td style="padding:3px 0;font-weight:800;">: ' + (ath.club || '-') + '</td></tr>');
+        printWin.document.write('<tr><td style="padding:3px 0;color:#666;">Sabuk</td><td style="padding:3px 0;font-weight:800;">: ' + (ath.sabuk || '-') + '</td></tr>');
+        printWin.document.write('<tr><td style="padding:3px 0;color:#666;">Jenis Kelamin</td><td style="padding:3px 0;font-weight:800;">: ' + (ath.gender || '-') + '</td></tr>');
+        printWin.document.write('<tr><td style="padding:3px 0;color:#666;">Umur / Kel. Umur</td><td style="padding:3px 0;font-weight:800;">: ' + (athAge !== null ? athAge + ' tahun' : '-') + ' / ' + athAgLabel + '</td></tr>');
+        printWin.document.write('<tr><td style="padding:3px 0;color:#666;">Jumlah Tes</td><td style="padding:3px 0;font-weight:800;">: ' + athTests.length + ' kali</td></tr></table>');
+        printWin.document.write('<table style="width:100%;border-collapse:collapse;"><thead><tr><th style="padding:5px 6px;font-size:9px;border:1px solid #ddd;background:#dc2626;color:#fff;">Tanggal</th>' + headerCols + '</tr></thead><tbody>' + tableRows + '</tbody></table>');
+        printWin.document.write('<div style="margin-top:15px;font-size:8px;color:#999;text-align:center;">Dicetak oleh Sistem Informasi TI Musi Rawas | ' + new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) + '</div>');
+        printWin.document.write('<div class="no-print" style="text-align:center;margin-top:15px;"><button onclick="window.print()" style="padding:10px 30px;background:#dc2626;color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:14px;">Cetak / Print</button></div>');
+        printWin.document.write('</body></html>');
+        printWin.document.close();
+      };
+      const handlePrintRanking = () => {
+        const rTest = effectiveTests.find(t => t.key === rankingFilterTest);
+        if (!rTest) return;
+        const rankings = buildRankingData();
+        const printWin = window.open('', '_blank', 'width=900,height=800');
+        if (!printWin) { triggerToast('Pop-up diblokir!', 'error'); return; }
+        let ageLbl = rankingFilterAge === 'Semua' ? 'Semua Kelompok Umur' : (AGE_GROUPS.find(a => a.key === rankingFilterAge)?.label || rankingFilterAge);
+        let genderLbl = rankingFilterGender === 'Semua' ? 'Semua Jenis Kelamin' : rankingFilterGender;
+        let rows = '';
+        rankings.forEach((r, i) => {
+          const norm = getNormaPredikat(rankingFilterTest, r.gender, r.age, r.value, normaData);
+          const medal = i === 0 ? '&#129351; ' : (i === 1 ? '&#129352; ' : (i === 2 ? '&#129353; ' : ''));
+          rows += '<tr style="background:' + (i < 3 ? norm.color + '10' : (i % 2 === 0 ? '#f9f9f9' : '#fff')) + ';"><td style="padding:4px 6px;font-size:10px;border:1px solid #ddd;text-align:center;font-weight:800;">' + medal + (i + 1) + '</td><td style="padding:4px 6px;font-size:10px;border:1px solid #ddd;font-weight:700;">' + r.name + '</td><td style="padding:4px 6px;font-size:9px;border:1px solid #ddd;text-align:center;">' + r.club + '</td><td style="padding:4px 6px;font-size:9px;border:1px solid #ddd;text-align:center;">' + r.gender + '</td><td style="padding:4px 6px;font-size:9px;border:1px solid #ddd;text-align:center;">' + (r.age !== null ? r.age + ' thn' : '-') + '</td><td style="padding:4px 6px;font-size:9px;border:1px solid #ddd;text-align:center;">' + (AGE_GROUPS.find(a => a.key === getAgeGroup(r.age))?.label || '-') + '</td><td style="padding:4px 6px;font-size:11px;border:1px solid #ddd;text-align:center;font-weight:800;">' + r.value + ' ' + rTest.unit + '</td><td style="padding:4px 6px;font-size:9px;border:1px solid #ddd;text-align:center;font-weight:800;color:' + norm.color + ';">' + norm.predikat + '</td></tr>';
+        });
+        printWin.document.write('<!DOCTYPE html><html><head><title>Ranking Tes Fisik</title><style>@media print{body{margin:0;} .no-print{display:none!important;}}</style></head><body style="font-family:Arial,sans-serif;padding:20px;color:#333;">');
+        printWin.document.write('<div style="text-align:center;border-bottom:3px double #dc2626;padding-bottom:10px;margin-bottom:15px;"><div style="font-size:16px;font-weight:900;color:#dc2626;">TAEKWONDO INDONESIA</div><div style="font-size:11px;color:#666;">KABUPATEN MUSI RAWAS</div><div style="font-size:13px;font-weight:800;margin-top:10px;">RANKING TES FISIK ATLET</div><div style="font-size:11px;color:#666;margin-top:4px;">' + rTest.label + ' (' + rTest.unit + ')</div></div>');
+        printWin.document.write('<table style="width:100%;border-collapse:collapse;margin-bottom:15px;font-size:11px;"><tr><td style="color:#666;">Filter Kelompok Umur</td><td style="font-weight:800;">: ' + ageLbl + '</td></tr><tr><td style="color:#666;">Filter Jenis Kelamin</td><td style="font-weight:800;">: ' + genderLbl + '</td></tr><tr><td style="color:#666;">Total Atlet</td><td style="font-weight:800;">: ' + rankings.length + '</td></tr></table>');
+        printWin.document.write('<table style="width:100%;border-collapse:collapse;"><thead><tr><th style="padding:5px 6px;font-size:9px;border:1px solid #ddd;background:#dc2626;color:#fff;">#</th><th style="padding:5px 6px;font-size:9px;border:1px solid #ddd;background:#dc2626;color:#fff;">Nama</th><th style="padding:5px 6px;font-size:9px;border:1px solid #ddd;background:#dc2626;color:#fff;">Club</th><th style="padding:5px 6px;font-size:9px;border:1px solid #ddd;background:#dc2626;color:#fff;">LK</th><th style="padding:5px 6px;font-size:9px;border:1px solid #ddd;background:#dc2626;color:#fff;">Umur</th><th style="padding:5px 6px;font-size:9px;border:1px solid #ddd;background:#dc2626;color:#fff;">Kel. Umur</th><th style="padding:5px 6px;font-size:9px;border:1px solid #ddd;background:#dc2626;color:#fff;">' + rTest.label + '</th><th style="padding:5px 6px;font-size:9px;border:1px solid #ddd;background:#dc2626;color:#fff;">Predikat</th></tr></thead><tbody>' + rows + '</tbody></table>');
+        printWin.document.write('<div style="margin-top:15px;font-size:8px;color:#999;text-align:center;">Dicetak oleh Sistem Informasi TI Musi Rawas | ' + new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) + '</div>');
+        printWin.document.write('<div class="no-print" style="text-align:center;margin-top:15px;"><button onclick="window.print()" style="padding:10px 30px;background:#dc2626;color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:14px;">Cetak / Print</button></div>');
+        printWin.document.write('</body></html>');
+        printWin.document.close();
+      };
+      const buildRankingData = () => {
+        const data = [];
+        physicalTests.forEach(test => {
+          const val = test[rankingFilterTest];
+          if (val === undefined || val === null) return;
+          const ath = users.find(u => u.id === Number(test.athleteId));
+          if (!ath) return;
+          const age = getAthleteAge(ath) || test.athleteAge;
+          const agKey = getAgeGroup(age);
+          const gender = ath.gender || test.athleteGender;
+          if (rankingFilterAge !== 'Semua' && agKey !== rankingFilterAge) return;
+          if (rankingFilterGender !== 'Semua' && gender !== rankingFilterGender) return;
+          if (user.role !== 'super_admin' && ath.club !== user.club) return;
+          data.push({ athleteId: Number(test.athleteId), name: ath.name, club: ath.club, gender: gender, age: age, ageGroup: agKey, sabuk: ath.sabuk, value: Number(val), testDate: test.testDate });
+        });
+        const bestMap = {};
+        data.forEach(d => {
+          const existing = bestMap[d.athleteId];
+          if (!existing || d.testDate > existing.testDate) bestMap[d.athleteId] = d;
+        });
+        const uniqueData = Object.values(bestMap);
+        const testType = effectiveTests.find(t => t.key === rankingFilterTest);
+        const isHigher = testType?.type !== 'lower_better';
+        uniqueData.sort((a, b) => isHigher ? b.value - a.value : a.value - b.value);
+        return uniqueData;
+      };
+            const handleViewGraph = (athleteId, testKeys) => {
+        setSelectedAthleteId(athleteId);
+        setSelectedTestKeys(testKeys);
+        setViewMode('graph');
+      };
+      const handleViewAllGraph = (athleteId) => {
+        const tests = getAthleteTests(athleteId);
+        if (tests.length === 0) { triggerToast('Belum ada data tes fisik untuk atlet ini.', 'error'); return; }
+        const availableKeys = effectiveTests.filter(item => tests.some(t => t[item.key] !== undefined && t[item.key] !== null)).map(item => item.key);
+        if (availableKeys.length === 0) { triggerToast('Tidak ada data tes yang tersedia untuk digrafikkan.', 'error'); return; }
+        handleViewGraph(athleteId, availableKeys);
+      };
+      useEffect(() => {
+        if (viewMode !== 'graph' || chartMode !== 'line' || !selectedAthleteId || selectedTestKeys.length === 0) { if (chartInstanceRef.current) { chartInstanceRef.current.destroy(); chartInstanceRef.current = null; } return; }
+        const tests = getAthleteTests(selectedAthleteId);
+        if (tests.length === 0) return;
+        const athlete = users.find(u => u.id === selectedAthleteId);
+        if (!athlete) return;
+        const canvas = chartRef.current;
+        if (!canvas) return;
+        if (typeof window.Chart === 'undefined') { console.warn('Chart.js belum dimuat'); return; }
+        if (chartInstanceRef.current) { chartInstanceRef.current.destroy(); chartInstanceRef.current = null; }
+        const sortedTestsForChart = [...tests].sort((a, b) => (a.testDate || '').localeCompare(b.testDate || ''));
+        const labels = sortedTestsForChart.map(t => {
+          const d = new Date(t.testDate);
+          return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: '2-digit' }); });
+        const colors = ['#dc2626', '#2563eb', '#16a34a', '#9333ea', '#ea580c', '#0891b2', '#c026d3', '#ca8a04'];
+        const datasets = selectedTestKeys.map((key, idx) => {
+          const item = effectiveTests.find(i => i.key === key);
+          const data = sortedTestsForChart.map(t => t[key] !== undefined && t[key] !== null ? Number(t[key]) : null);
+          return {
+            label: item ? `${item.label} (${item.unit})` : key,
+            data: data,
+            borderColor: colors[idx % colors.length],
+            backgroundColor: colors[idx % colors.length] + '22',
+            borderWidth: 2.5,
+            pointRadius: 5,
+            pointBackgroundColor: colors[idx % colors.length],
+            pointBorderColor: '#fff',
+            pointBorderWidth: 2,
+            tension: 0.3,
+            fill: false,
+            spanGaps: true
+          };
+        });
+        const allHigherBetter = selectedTestKeys.every(k => { const it = effectiveTests.find(i => i.key === k); return it && it.type === 'higher_better'; });
+        try {
+          chartInstanceRef.current = new window.Chart(canvas, {
+            type: 'line',
+            data: { labels, datasets },
+            options: {
+              responsive: true,
+              maintainAspectRatio: true,
+              aspectRatio: 1.3,
+              plugins: {
+                legend: { position: 'bottom', labels: { font: { size: 10, weight: 'bold' }, padding: 12, usePointStyle: true, pointStyle: 'circle' } },
+                title: { display: true, text: 'Progres Tes Fisik - ' + athlete.name, font: { size: 13, weight: 'bold' }, padding: { bottom: 16 } },
+                tooltip: {
+                  backgroundColor: 'rgba(0,0,0,0.85)',
+                  titleFont: { size: 11, weight: 'bold' },
+                  bodyFont: { size: 11 },
+                  padding: 10,
+                  cornerRadius: 10,
+                  callbacks: {
+                    afterBody: function(context) {
+                      var key = selectedTestKeys[context[0].datasetIndex];
+                      var value = context[0].raw;
+                      if (value === null) return '';
+                      var gender = athlete.gender;
+                      var norma = getNormaPredikat(key, gender, getAthleteAge(athlete), value, normaData);
+                      return ['Predikat: ' + norma.predikat];
+                    }
+                  }
+                }
+              },
+              scales: {
+                x: { grid: { display: false }, ticks: { font: { size: 9, weight: 'bold' } } },
+                y: { beginAtZero: allHigherBetter,
+                  grid: { color: '#f3f4f6' }, ticks: { font: { size: 10, weight: 'bold' } } }
+              },
+              interaction: { mode: 'index', intersect: false }
+            }
+          });
+        } catch (err) { console.error('Gagal membuat grafik:', err); }
+        return () => { if (chartInstanceRef.current) { try { chartInstanceRef.current.destroy(); } catch(e) {} chartInstanceRef.current = null; } };
+      }, [viewMode, selectedAthleteId, chartMode, JSON.stringify(selectedTestKeys)]);
+      useEffect(() => {
+        if ((viewMode !== 'graph' && viewMode !== 'profile') || !selectedAthleteId) { if (chartInstanceRef2.current) { try { chartInstanceRef2.current.destroy(); } catch(e) {} chartInstanceRef2.current = null; } return; }
+        const tests = getAthleteTests(selectedAthleteId);
+        if (tests.length === 0) return;
+        const athlete = users.find(u => u.id === selectedAthleteId);
+        if (!athlete) return;
+        const canvas = chartRef2.current;
+        if (!canvas) return;
+        if (typeof window.Chart === 'undefined') return;
+        if (chartInstanceRef2.current) { try { chartInstanceRef2.current.destroy(); } catch(e) {} chartInstanceRef2.current = null; }
+        const latestTest = viewMode === 'profile' ? (profileTestId ? tests.find(t => t.id === profileTestId) : tests[0]) : tests[0];
+        const athAge = getAthleteAge(athlete);
+        const athGender = athlete.gender;
+
+        if (chartMode === 'radar') {
+          const availableKeys = effectiveTests.filter(item => latestTest[item.key] !== undefined && latestTest[item.key] !== null);
+          if (availableKeys.length < 3) return;
+          const labels = availableKeys.map(t => t.label.split('(')[0].trim());
+          const dataVals = availableKeys.map(t => normalizeTestValue(t.key, latestTest[t.key], athGender, athAge, normaData) || 0);
+          const normColors = availableKeys.map(t => { const n = getNormaPredikat(t.key, athGender, athAge, latestTest[t.key], normaData); return n.color; });
+          try {
+            chartInstanceRef2.current = new window.Chart(canvas, {
+              type: 'radar',
+              data: {
+                labels: labels,
+                datasets: [{
+                  label: 'Profil Kebugaran ' + athlete.name,
+                  data: dataVals,
+                  backgroundColor: 'rgba(220, 38, 38, 0.15)',
+                  borderColor: '#dc2626',
+                  borderWidth: 2.5,
+                  pointBackgroundColor: normColors,
+                  pointBorderColor: '#fff',
+                  pointBorderWidth: 2,
+                  pointRadius: 6,
+                  pointHoverRadius: 8
+                }]
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                aspectRatio: 1.1,
+                plugins: {
+                  legend: { display: false },
+                  title: { display: true, text: 'Profil Kebugaran - ' + athlete.name, font: { size: 13, weight: 'bold' }, padding: { bottom: 12 } },
+                  tooltip: {
+                    backgroundColor: 'rgba(0,0,0,0.85)',
+                    bodyFont: { size: 11 }, padding: 10, cornerRadius: 10,
+                    callbacks: {
+                      label: function(ctx) {
+                        const item = availableKeys[ctx.dataIndex];
+                        const val = latestTest[item.key];
+                        const norm = getNormaPredikat(item.key, athGender, athAge, val, normaData);
+                        return item.label + ': ' + val + ' ' + item.unit + ' (' + norm.predikat + ')';
+                      }
+                    }
+                  }
+                },
+                scales: {
+                  r: {
+                    beginAtZero: true,
+                    max: 100,
+                    ticks: { stepSize: 20, font: { size: 9, weight: 'bold' }, backdropColor: 'transparent', color: '#9ca3af' },
+                    grid: { color: '#e5e7eb' },
+                    angleLines: { color: '#e5e7eb' },
+                    pointLabels: { font: { size: 10, weight: 'bold' }, color: '#374151' }
+                  }
+                }
+              }
+            });
+          } catch(err) { console.error('Radar error:', err); }
+        } else if (chartMode === 'bar') {
+          const availableKeys = effectiveTests.filter(item => latestTest[item.key] !== undefined && latestTest[item.key] !== null);
+          if (availableKeys.length === 0) return;
+          const labels = availableKeys.map(t => t.label.split('(')[0].trim());
+          const barColors = availableKeys.map(t => { const n = getNormaPredikat(t.key, athGender, athAge, latestTest[t.key], normaData); return n.color; });
+          const barData = availableKeys.map(t => Number(latestTest[t.key]));
+          try {
+            chartInstanceRef2.current = new window.Chart(canvas, {
+              type: 'bar',
+              data: {
+                labels: labels,
+                datasets: [{
+                  label: 'Nilai Tes Terbaru',
+                  data: barData,
+                  backgroundColor: barColors.map(c => c + '55'),
+                  borderColor: barColors,
+                  borderWidth: 2,
+                  borderRadius: 8,
+                  barPercentage: 0.7
+                }]
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                aspectRatio: 1.2,
+                plugins: {
+                  legend: { display: false },
+                  title: { display: true, text: 'Hasil Tes Fisik Terbaru - ' + athlete.name, font: { size: 13, weight: 'bold' }, padding: { bottom: 12 } },
+                  tooltip: {
+                    backgroundColor: 'rgba(0,0,0,0.85)',
+                    bodyFont: { size: 11 }, padding: 10, cornerRadius: 10,
+                    callbacks: {
+                      label: function(ctx) {
+                        const item = availableKeys[ctx.dataIndex];
+                        const val = barData[ctx.dataIndex];
+                        const norm = getNormaPredikat(item.key, athGender, athAge, val, normaData);
+                        return val + ' ' + item.unit + ' (' + norm.predikat + ')';
+                      }
+                    }
+                  }
+                },
+                scales: {
+                  x: { grid: { display: false }, ticks: { font: { size: 9, weight: 'bold' }, maxRotation: 45, minRotation: 0 } },
+                  y: { beginAtZero: true, grid: { color: '#f3f4f6' }, ticks: { font: { size: 10, weight: 'bold' } } }
+                }
+              }
+            });
+          } catch(err) { console.error('Bar error:', err); }
+        }
+        return () => { if (chartInstanceRef2.current) { try { chartInstanceRef2.current.destroy(); } catch(e) {} chartInstanceRef2.current = null; } };
+      }, [viewMode, selectedAthleteId, chartMode, profileTestId, JSON.stringify(physicalTests)]);
+      // Doughnut chart for profile view predikat distribution
+      useEffect(() => {
+        if (viewMode !== 'profile' || !selectedAthleteId) { if (chartInstanceRef3.current) { try { chartInstanceRef3.current.destroy(); } catch(e) {} chartInstanceRef3.current = null; } return; }
+        const tests = getAthleteTests(selectedAthleteId);
+        if (tests.length === 0) return;
+        const athlete = users.find(u => u.id === selectedAthleteId);
+        if (!athlete) return;
+        const canvas = chartRef3.current;
+        if (!canvas) return;
+        if (typeof window.Chart === 'undefined') return;
+        if (chartInstanceRef3.current) { try { chartInstanceRef3.current.destroy(); } catch(e) {} chartInstanceRef3.current = null; }
+        const targetTest = profileTestId ? tests.find(t => t.id === profileTestId) : tests[0];
+        if (!targetTest) return;
+        const athAge = getAthleteAge(athlete);
+        const athGender = athlete.gender;
+        const availableKeys = effectiveTests.filter(item => targetTest[item.key] !== undefined && targetTest[item.key] !== null);
+        const predCount = {};
+        PREDIKAT_LIST.forEach(p => predCount[p] = 0);
+        availableKeys.forEach(item => {
+          const norm = getNormaPredikat(item.key, athGender, athAge, targetTest[item.key], normaData);
+          if (predCount[norm.predikat] !== undefined) predCount[norm.predikat]++;
+        });
+        const activeLabels = PREDIKAT_LIST.filter(p => predCount[p] > 0);
+        const activeData = activeLabels.map(p => predCount[p]);
+        const activeColors = activeLabels.map(p => PREDIKAT_COLORS[p]);
+        if (activeData.length === 0) return;
+        try {
+          chartInstanceRef3.current = new window.Chart(canvas, {
+            type: 'doughnut',
+            data: {
+              labels: activeLabels,
+              datasets: [{
+                data: activeData,
+                backgroundColor: activeColors.map(c => c + 'cc'),
+                borderColor: activeColors,
+                borderWidth: 2,
+                hoverOffset: 8
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: true,
+              cutout: '60%',
+              plugins: {
+                legend: { position: 'bottom', labels: { font: { size: 9, weight: 'bold' }, padding: 8, usePointStyle: true, pointStyle: 'circle' } },
+                title: { display: false },
+                tooltip: {
+                  backgroundColor: 'rgba(0,0,0,0.85)',
+                  bodyFont: { size: 11 }, padding: 10, cornerRadius: 10,
+                  callbacks: { label: function(ctx) { return ctx.label + ': ' + ctx.raw + ' tes'; } }
+                }
+              }
+            }
+          });
+        } catch(err) { console.error('Doughnut error:', err); }
+        return () => { if (chartInstanceRef3.current) { try { chartInstanceRef3.current.destroy(); } catch(e) {} chartInstanceRef3.current = null; } };
+      }, [viewMode, selectedAthleteId, profileTestId, JSON.stringify(physicalTests)]);
+      // ===== RENDER: NORMA TABLE =====
+      const renderNormaTable = () => (
+        <div className="space-y-4 animate-fade-in">
+          <div className="flex items-center justify-between">
+            <h3 className="font-extrabold text-sm text-gray-800 flex items-center gap-1.5"><Icon name="BookOpen" className="w-4 h-4 text-red-600" /> Norma Standar Tes Fisik Taekwondo</h3>
+            <button onClick={() => setShowNorma(false)} className="text-gray-400 hover:text-red-600"><Icon name="XCircle" className="w-6 h-6" /></button>
+          </div>
+          <p className="text-[10px] text-gray-500 font-bold">Berdasarkan standar ilmu olahraga untuk atlet taekwondo. Norma dikelompokkan berdasarkan jenis kelamin dan kelompok umur. {canEditNorma && <span className="text-red-600">Klik ikon edit pada setiap tabel untuk mengubah norma.</span>}</p>
+          {AGE_GROUPS.map(ag => (
+            <div key={ag.key} className="bg-white rounded-3xl border shadow-sm overflow-hidden">
+              <div className="px-4 py-2 bg-gradient-to-r from-gray-50 to-gray-100 font-extrabold text-xs uppercase tracking-wider text-gray-700 flex items-center justify-between">
+                <span><Icon name="Calendar" className="w-3.5 h-3.5 inline mr-1" />{ag.label}</span>
+                {canEditNorma && <button onClick={() => { setEditNormaAgeGroup(ag.key); setEditNormaGender('Laki'); setEditNormaTestKey(effectiveTests[0].key); loadEditNormaValues(ag.key, 'Laki', effectiveTests[0].key); setShowEditNorma(true); setShowNorma(false); }} className="text-red-600 hover:text-red-800"><Icon name="Pencil" className="w-3.5 h-3.5" /></button>}
+              </div>
+              {['Laki', 'Perempuan'].map(gender => (
+                <div key={gender} className="overflow-x-auto">
+                  <div className={`px-4 py-1.5 font-extrabold text-[10px] uppercase tracking-wider ${gender === 'Laki' ? 'bg-blue-50 text-blue-800' : 'bg-pink-50 text-pink-800'}`}>{gender === 'Laki' ? 'Laki-laki' : 'Perempuan'}{canEditNorma && <button onClick={() => { setEditNormaAgeGroup(ag.key); setEditNormaGender(gender); setEditNormaTestKey(effectiveTests[0].key); loadEditNormaValues(ag.key, gender, effectiveTests[0].key); setShowEditNorma(true); setShowNorma(false); }} className="float-right text-gray-400 hover:text-red-600"><Icon name="Pencil" className="w-3 h-3" /></button>}</div>
+                  <table className="w-full text-[9px] border-collapse">
+                    <thead>
+                      <tr className="bg-gray-50">
+                        <th className="p-1.5 text-left font-bold border-b" style={{borderRight:'1px solid #e5e7eb'}}>Tes</th>
+                        <th className="p-1.5 text-center font-bold border-b" style={{color:'#16a34a',borderRight:'1px solid #e5e7eb'}}>Sangat Baik</th>
+                        <th className="p-1.5 text-center font-bold border-b" style={{color:'#65a30d',borderRight:'1px solid #e5e7eb'}}>Baik</th>
+                        <th className="p-1.5 text-center font-bold border-b" style={{color:'#ca8a04',borderRight:'1px solid #e5e7eb'}}>Sedang</th>
+                        <th className="p-1.5 text-center font-bold border-b" style={{color:'#ea580c',borderRight:'1px solid #e5e7eb'}}>Kurang</th>
+                        <th className="p-1.5 text-center font-bold border-b" style={{color:'#dc2626'}}>Sangat Kurang</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {effectiveTests.map(item => {
+                        const norms = normaData[ag.key]?.[gender]?.[item.key] || DEFAULT_NORMA_TES_FISIK[ag.key]?.[gender]?.[item.key] || [];
+                        return (
+                          <tr key={item.key} className="hover:bg-gray-50">
+                            <td className="p-1.5 font-bold text-gray-800 border-b whitespace-nowrap" style={{borderRight:'1px solid #e5e7eb'}}>
+                              <div className="font-black text-gray-900">{item.label}</div>
+                              <div className="text-gray-400 font-medium">({item.unit})</div>
+                            </td>
+                            {norms.map((n, ni) => (
+                              <td key={ni} className="p-1.5 text-center border-b" style={{color: n.color, fontWeight: 800, fontSize: '9px', borderRight:'1px solid #e5e7eb'}}>
+                                {n.min} - {n.max}
+                              </td>
+                            ))}
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ))}
+            </div>
+          ))}
+          <button onClick={() => setShowNorma(false)} className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 py-2.5 rounded-xl font-bold text-xs transition">Tutup Norma</button>
+        </div>
+      );
+      // ===== RENDER: EDIT NORMA =====
+      const loadEditNormaValues = (ag, g, tk) => {
+        const norms = normaData[ag]?.[g]?.[tk] || DEFAULT_NORMA_TES_FISIK[ag]?.[g]?.[tk] || [];
+        setEditNormaValues(norms.map(n => ({ predikat: n.predikat, min: n.min, max: n.max, color: n.color })));
+      };
+      const handleSaveNorma = () => {
+        if (editNormaValues.length !== 5) { triggerToast('Norma harus memiliki 5 predikat!', 'error'); return; }
+        const docId = `norma_${editNormaAgeGroup}_${editNormaGender}_${editNormaTestKey}`;
+        const docData = { id: docId, ageGroup: editNormaAgeGroup, gender: editNormaGender, testKey: editNormaTestKey, norms: editNormaValues.map(v => ({ predikat: v.predikat, min: Number(v.min), max: Number(v.max), color: v.color })) };
+        const existing = physicalNorms.find(n => n.id === docId);
+        if (existing) { updatePhysicalNorm(docId, docData); } else { addPhysicalNorm(docData); }
+        triggerToast('Norma tes fisik berhasil disimpan!');
+        setShowEditNorma(false);
+        setShowNorma(true);
+      };
+      const handleResetToDefault = () => {
+        const defaults = DEFAULT_NORMA_TES_FISIK[editNormaAgeGroup]?.[editNormaGender]?.[editNormaTestKey];
+        if (defaults) { setEditNormaValues(defaults.map(n => ({...n}))); triggerToast('Norma direset ke default.'); }
+      };
+      const renderEditNorma = () => {
+        if (!showEditNorma) return null;
+        const agLabel = AGE_GROUPS.find(a => a.key === editNormaAgeGroup)?.label || editNormaAgeGroup;
+        const testItem = effectiveTests.find(i => i.key === editNormaTestKey);
+        return (
+          <div className="space-y-4 animate-fade-in">
+            <div className="flex items-center justify-between">
+              <button onClick={() => { setShowEditNorma(false); setShowNorma(true); }} className="flex items-center gap-1 text-xs font-bold text-red-700 hover:text-red-800"><Icon name="ArrowLeft" className="w-4 h-4" /> Kembali</button>
+              <span className="text-[10px] text-gray-500 font-bold">Edit Norma Standar</span>
+            </div>
+            <div className="bg-gradient-to-r from-amber-600 to-orange-700 rounded-2xl p-4 text-white">
+              <h3 className="font-black text-sm">Edit Norma Tes Fisik</h3>
+              <p className="text-[10px] text-amber-100 mt-1">Ubah nilai standar norma. Perubahan berlaku untuk semua atlet.</p>
+            </div>
+            <div className="bg-white p-4 rounded-3xl border shadow-sm space-y-3">
+              <span className="font-extrabold text-xs text-red-800 uppercase block border-b pb-1">Pilih Parameter</span>
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-700 uppercase mb-1">Kelompok Umur</label>
+                  <select value={editNormaAgeGroup} onChange={e => { setEditNormaAgeGroup(e.target.value); loadEditNormaValues(e.target.value, editNormaGender, editNormaTestKey); }} className="w-full text-xs p-2 bg-gray-50 border rounded-xl font-bold">
+                    {AGE_GROUPS.map(ag => <option key={ag.key} value={ag.key}>{ag.label}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-700 uppercase mb-1">Jenis Kelamin</label>
+                  <select value={editNormaGender} onChange={e => { setEditNormaGender(e.target.value); loadEditNormaValues(editNormaAgeGroup, e.target.value, editNormaTestKey); }} className="w-full text-xs p-2 bg-gray-50 border rounded-xl font-bold">
+                    <option value="Laki">Laki-laki</option>
+                    <option value="Perempuan">Perempuan</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-700 uppercase mb-1">Jenis Tes</label>
+                  <select value={editNormaTestKey} onChange={e => { setEditNormaTestKey(e.target.value); loadEditNormaValues(editNormaAgeGroup, editNormaGender, e.target.value); }} className="w-full text-xs p-2 bg-gray-50 border rounded-xl font-bold">
+                    {effectiveTests.map(item => <option key={item.key} value={item.key}>{item.label}</option>)}
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div className="bg-white p-4 rounded-3xl border shadow-sm space-y-3">
+              <div className="flex items-center justify-between border-b pb-1">
+                <span className="font-extrabold text-xs text-red-800 uppercase">Nilai Norma: {testItem?.label} ({testItem?.unit})</span>
+                <span className="text-[9px] text-gray-400 font-bold">{agLabel} - {editNormaGender === 'Laki' ? 'Laki-laki' : 'Perempuan'}</span>
+              </div>
+              <p className="text-[9px] text-gray-400 font-bold">Masukkan nilai Min dan Max untuk setiap predikat. Pastikan range tidak tumpang tindih.</p>
+              {editNormaValues.map((nv, idx) => (
+                <div key={idx} className="flex items-center gap-2 p-2 rounded-xl border" style={{backgroundColor: nv.color + '0a', borderColor: nv.color + '33'}}>
+                  <div className="w-2 h-2 rounded-full shrink-0" style={{backgroundColor: nv.color}}></div>
+                  <span className="text-[10px] font-black w-24 shrink-0" style={{color: nv.color}}>{nv.predikat}</span>
+                  <div className="flex items-center gap-1 flex-1">
+                    <input type="number" step="any" value={nv.min} onChange={e => { const updated = [...editNormaValues]; updated[idx] = {...updated[idx], min: e.target.value}; setEditNormaValues(updated); }} className="w-full text-xs p-1.5 bg-white border rounded-lg text-center font-bold" placeholder="Min" />
+                    <span className="text-gray-400 text-[10px] font-bold">-</span>
+                    <input type="number" step="any" value={nv.max} onChange={e => { const updated = [...editNormaValues]; updated[idx] = {...updated[idx], max: e.target.value}; setEditNormaValues(updated); }} className="w-full text-xs p-1.5 bg-white border rounded-lg text-center font-bold" placeholder="Max" />
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <button onClick={handleResetToDefault} className="bg-gray-100 hover:bg-gray-200 text-gray-700 py-2.5 rounded-xl font-bold text-xs transition flex items-center justify-center gap-1.5"><Icon name="RotateCcw" className="w-3.5 h-3.5" /> Reset Default</button>
+              <button onClick={handleSaveNorma} className="bg-red-700 hover:bg-red-800 text-white py-2.5 rounded-xl font-bold text-xs shadow-lg flex items-center justify-center gap-1.5 transition"><Icon name="Save" className="w-3.5 h-3.5" /> Simpan Norma</button>
+            </div>
+          </div>
+        );
+      };
+      // ===== RENDER: GRAPH VIEW =====
+      if (viewMode === 'graph' && selectedAthleteId) {
+        const athlete = users.find(u => u.id === selectedAthleteId);
+        const tests = getAthleteTests(selectedAthleteId);
+        return (
+          <div className="space-y-4 animate-fade-in">
+            <div className="flex items-center justify-between">
+              <button onClick={() => { setChartMode('radar'); setViewMode('detail'); if (chartInstanceRef.current) { chartInstanceRef.current.destroy(); chartInstanceRef.current = null; } if (chartInstanceRef2.current) { try { chartInstanceRef2.current.destroy(); } catch(e) {} chartInstanceRef2.current = null; } if (chartInstanceRef3.current) { try { chartInstanceRef3.current.destroy(); } catch(e) {} chartInstanceRef3.current = null; } }} className="flex items-center gap-1 text-xs font-bold text-red-700 hover:text-red-800"><Icon name="ArrowLeft" className="w-4 h-4" /> Kembali</button>
+              <span className="text-[10px] text-gray-500 font-bold">Grafik Tes Fisik</span>
+            </div>
+            {athlete && (
+              <div className="bg-gradient-to-r from-red-700 to-red-900 rounded-2xl p-4 text-white">
+                <h3 className="font-black text-sm">{athlete.name}</h3>
+                <p className="text-[10px] text-red-200 font-bold mt-0.5">{athlete.club} | {athlete.sabuk || '-'} | {athlete.gender || '-'}</p>
+                <p className="text-[10px] text-red-100 mt-1">{(() => { const ga = getAthleteAge(athlete); const gak = getAgeGroup(ga); return (ga !== null ? 'Umur: ' + ga + ' thn | ' : '') + 'Kelompok Umur: ' + (AGE_GROUPS.find(ag => ag.key === gak)?.label || gak); })()}</p>
+                <p className="text-[10px] text-red-100 mt-0.5">{tests.length} kali tes tercatat</p>
+              </div>
+            )}
+            {/* Chart Mode Tabs */}
+            <div className="bg-white p-2 rounded-3xl border shadow-sm">
+              <div className="flex gap-1 mb-3">
+                <button onClick={() => setChartMode('radar')} className={`flex-1 py-2 rounded-xl text-[10px] font-bold flex justify-center items-center gap-1 transition ${chartMode === 'radar' ? 'bg-red-700 text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                  <Icon name="Activity" className="w-3.5 h-3.5" /> Profil Kebugaran
+                </button>
+                <button onClick={() => setChartMode('bar')} className={`flex-1 py-2 rounded-xl text-[10px] font-bold flex justify-center items-center gap-1 transition ${chartMode === 'bar' ? 'bg-red-700 text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                  <Icon name="BarChart3" className="w-3.5 h-3.5" /> Batang Nilai
+                </button>
+                <button onClick={() => setChartMode('line')} className={`flex-1 py-2 rounded-xl text-[10px] font-bold flex justify-center items-center gap-1 transition ${chartMode === 'line' ? 'bg-red-700 text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                  <Icon name="TrendingUp" className="w-3.5 h-3.5" /> Progres Waktu
+                </button>
+              </div>
+              {chartMode === 'radar' && <canvas ref={chartRef2} />}
+              {chartMode === 'bar' && <canvas ref={chartRef2} />}
+              {chartMode === 'line' && (
+                <div>
+                  <div className="flex flex-wrap gap-1.5 mb-3">
+                    {effectiveTests.map(item => {
+                      const isActive = selectedTestKeys.includes(item.key);
+                      const hasData = tests.some(t => t[item.key] !== undefined && t[item.key] !== null);
+                      if (!hasData) return null;
+                      return (
+                        <button key={item.key} onClick={() => {
+                          if (isActive) {
+                            if (selectedTestKeys.length > 1) setSelectedTestKeys(prev => prev.filter(k => k !== item.key));
+                          } else {
+                            setSelectedTestKeys(prev => [...prev, item.key]);
+                          }
+                        }} className={`px-2.5 py-1 rounded-full text-[9px] font-bold border transition ${isActive ? 'bg-red-700 text-white border-red-700 shadow-sm' : 'bg-white text-gray-600 border-gray-200 hover:border-red-300'}`}>
+                          {item.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <canvas ref={chartRef} />
+                </div>
+              )}
+            </div>
+            {/* Summary per test selected */}
+            <div className="bg-white p-4 rounded-3xl border shadow-sm space-y-2">
+              <span className="font-extrabold text-xs text-gray-800 uppercase block border-b pb-1">Ringkasan Per Tes</span>
+              {selectedTestKeys.map(key => {
+                const item = effectiveTests.find(i => i.key === key);
+                const testsWithData = tests.filter(t => t[key] !== undefined && t[key] !== null);
+                if (testsWithData.length === 0) return null;
+                const values = testsWithData.map(t => Number(t[key]));
+                const first = values[0];
+                const last = values[values.length - 1];
+                const latestTest = testsWithData[testsWithData.length - 1];
+                const diff = last - first;
+                const diffStr = diff > 0 ? `+${diff}` : `${diff}`;
+                const latestNorma = getNormaPredikat(key, athlete?.gender, getAthleteAge(athlete), last, normaData);
+                const comp = COMPOSITE_TESTS[key];
+                const rawLbl = comp && latestTest._compositeRaw && latestTest._compositeRaw[key] ? comp.summaryLabel(latestTest._compositeRaw[key]) : null;
+                return (
+                  <div key={key} className="p-2 bg-gray-50 rounded-xl border space-y-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full" style={{backgroundColor: latestNorma.color}}></div>
+                        <span className="text-xs font-bold text-gray-800">{item.label}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-gray-600">Terakhir: {last} {item.unit}</span>
+                        <span className={`text-[10px] font-black px-1.5 py-0.5 rounded ${diff > 0 ? (item.type === 'higher_better' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700') : diff < 0 ? (item.type === 'lower_better' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700') : 'bg-gray-100 text-gray-500'}`}>
+                          {diffStr}
+                        </span>
+                      </div>
+                    </div>
+                    {rawLbl && <div className="ml-4 text-[9px] font-medium text-gray-500">{rawLbl}</div>}
+                  </div>
+                );
+              })}
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <button onClick={() => handlePrintTest(selectedAthleteId, selectedTestKeys)} className="bg-green-600 hover:bg-green-700 text-white py-2.5 rounded-2xl font-bold text-xs shadow flex justify-center items-center gap-1.5 transition">
+                <Icon name="Printer" className="w-4 h-4" /> Print Grafik
+              </button>
+              <button onClick={() => { setViewMode('detail'); if (chartInstanceRef.current) { chartInstanceRef.current.destroy(); chartInstanceRef.current = null; } }} className="bg-gray-200 hover:bg-gray-300 text-gray-700 py-2.5 rounded-2xl font-bold text-xs flex justify-center items-center gap-1.5 transition">
+                <Icon name="ArrowLeft" className="w-4 h-4" /> Kembali
+              </button>
+            </div>
+          </div>
+        );
+      }
+
+      // ===== RENDER: FITNESS PROFILE DASHBOARD =====
+      if (viewMode === 'profile' && selectedAthleteId) {
+        const athlete = users.find(u => u.id === selectedAthleteId);
+        const tests = getAthleteTests(selectedAthleteId);
+        const targetTest = profileTestId ? tests.find(t => t.id === profileTestId) : tests[0];
+        const athAge = getAthleteAge(athlete);
+        const athGender = athlete.gender;
+        const athAgKey = getAgeGroup(athAge);
+        const athAgLabel = AGE_GROUPS.find(ag => ag.key === athAgKey)?.label || athAgKey;
+        const profileTestItems = targetTest ? effectiveTests.filter(item => targetTest[item.key] !== undefined && targetTest[item.key] !== null) : [];
+        const pcts = profileTestItems.map(t => normalizeTestValue(t.key, targetTest[t.key], athGender, athAge, normaData) || 0);
+        const avgPct = pcts.length > 0 ? Math.round(pcts.reduce((a,b) => a+b, 0) / pcts.length) : 0;
+        const overallPredikat = avgPct >= 80 ? 'Sangat Baik' : avgPct >= 60 ? 'Baik' : avgPct >= 40 ? 'Sedang' : avgPct >= 20 ? 'Kurang' : 'Sangat Kurang';
+        const overallColor = PREDIKAT_COLORS[overallPredikat] || '#9ca3af';
+        const predCount = {}; PREDIKAT_LIST.forEach(p => predCount[p] = 0);
+        profileTestItems.forEach(item => { const norm = getNormaPredikat(item.key, athGender, athAge, targetTest[item.key], normaData); if (predCount[norm.predikat] !== undefined) predCount[norm.predikat]++; });
+        const testIconMap = {pushUp:'Dumbbell',sitUp:'Target',bleepTest:'Heart',illinoisRun:'Zap',sprint20m:'Gauge',verticalJump:'ArrowUp',sitAndReach:'Ruler'};
+        const scoreCircleRadius = 54;
+        const scoreCircumference = 2 * Math.PI * scoreCircleRadius;
+        const scoreOffset = scoreCircumference - (avgPct / 100) * scoreCircumference;
+        return (
+          <div className="space-y-3 animate-fade-in">
+            <div className="flex items-center justify-between">
+              <button onClick={() => { setViewMode('detail'); setProfileTestId(null); if (chartInstanceRef2.current) { try { chartInstanceRef2.current.destroy(); } catch(e) {} chartInstanceRef2.current = null; } if (chartInstanceRef3.current) { try { chartInstanceRef3.current.destroy(); } catch(e) {} chartInstanceRef3.current = null; } }} className="flex items-center gap-1 text-xs font-bold text-red-700 hover:text-red-800"><Icon name="ArrowLeft" className="w-4 h-4" /> Kembali</button>
+              <span className="text-[10px] text-gray-500 font-bold">Profil Kebugaran</span>
+            </div>
+            {athlete && (
+              <div className="bg-gradient-to-br from-red-700 via-red-800 to-gray-900 rounded-2xl p-4 text-white relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-white opacity-5 rounded-full -mr-10 -mt-10"></div>
+                <div className="absolute bottom-0 left-0 w-20 h-20 bg-white opacity-5 rounded-full -ml-8 -mb-8"></div>
+                <h3 className="font-black text-base relative z-10">{athlete.name}</h3>
+                <p className="text-[10px] text-red-200 font-bold mt-0.5 relative z-10">{athlete.club} | {athlete.sabuk || '-'} | {athlete.gender || '-'}</p>
+                <p className="text-[10px] text-red-100 mt-1 relative z-10">{athAge !== null ? 'Umur: ' + athAge + ' thn' : 'Umur belum diisi'} | {athAgLabel}</p>
+              </div>
+            )}
+            {tests.length > 1 && (
+              <div className="bg-white p-3 rounded-2xl border shadow-sm">
+                <label className="text-[10px] font-bold text-gray-600 block mb-1">Pilih Sesi Tes:</label>
+                <select value={profileTestId || tests[0]?.id || ''} onChange={e => setProfileTestId(e.target.value || null)} className="w-full text-xs p-2 bg-gray-50 border rounded-xl font-bold">
+                  {tests.map((t, i) => (
+                    <option key={t.id} value={t.id}>{new Date(t.testDate).toLocaleDateString('id-ID', {day:'numeric',month:'long',year:'numeric'})} {i === 0 ? '(Terbaru)' : ''}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            {targetTest && profileTestItems.length > 0 ? (
+              <>
+                {/* Overall Score + Doughnut */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-white p-4 rounded-3xl border shadow-sm flex flex-col items-center justify-center">
+                    <div className="relative" style={{width: 130, height: 130}}>
+                      <svg width="130" height="130" viewBox="0 0 130 130">
+                        <circle cx="65" cy="65" r="54" fill="none" stroke="#f3f4f6" strokeWidth="10" />
+                        <circle cx="65" cy="65" r="54" fill="none" stroke={overallColor} strokeWidth="10" strokeDasharray={scoreCircumference} strokeDashoffset={scoreOffset} strokeLinecap="round" transform="rotate(-90 65 65)" style={{transition: 'stroke-dashoffset 0.8s ease'}} />
+                      </svg>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center">
+                        <span className="text-2xl font-black" style={{color: overallColor}}>{avgPct}</span>
+                        <span className="text-[8px] font-bold text-gray-400">SKOR</span>
+                      </div>
+                    </div>
+                    <span className="text-[11px] font-black mt-2 px-3 py-0.5 rounded-full text-white" style={{backgroundColor: overallColor}}>{overallPredikat}</span>
+                    <span className="text-[9px] text-gray-400 font-bold mt-1">Rata-rata {profileTestItems.length} tes</span>
+                  </div>
+                  <div className="bg-white p-4 rounded-3xl border shadow-sm flex flex-col items-center justify-center">
+                    <canvas ref={chartRef3} style={{maxHeight: 120}} />
+                    <span className="text-[9px] text-gray-400 font-bold mt-1">Distribusi Predikat</span>
+                  </div>
+                </div>
+                {/* Predikat Summary Bar */}
+                <div className="bg-white p-3 rounded-2xl border shadow-sm">
+                  <div className="flex justify-between gap-1">
+                    {PREDIKAT_LIST.map(p => (
+                      <div key={p} className="flex-1 text-center">
+                        <div className={`text-lg font-black ${predCount[p] > 0 ? '' : 'text-gray-200'}`} style={{color: predCount[p] > 0 ? PREDIKAT_COLORS[p] : '#e5e7eb'}}>{predCount[p]}</div>
+                        <div className="text-[7px] font-bold mt-0.5" style={{color: predCount[p] > 0 ? PREDIKAT_COLORS[p] : '#d1d5db'}}>{p}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                {/* Radar Chart */}
+                {profileTestItems.length >= 3 && (
+                  <div className="bg-white p-4 rounded-3xl border shadow-sm">
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <Icon name="Activity" className="w-3.5 h-3.5 text-red-600" />
+                      <span className="text-[10px] font-extrabold text-gray-700 uppercase">Profil Radar Kebugaran</span>
+                    </div>
+                    <canvas ref={chartRef2} />
+                  </div>
+                )}
+                {/* Individual Test Cards with Norm Zone Bars */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-1.5">
+                    <Icon name="ClipboardCheck" className="w-3.5 h-3.5 text-red-600" />
+                    <span className="text-[10px] font-extrabold text-gray-700 uppercase">Detail Per Item Tes</span>
+                  </div>
+                  {profileTestItems.map(item => {
+                    const val = targetTest[item.key];
+                    const norm = getNormaPredikat(item.key, athGender, athAge, val, normaData);
+                    const pct = normalizeTestValue(item.key, val, athGender, athAge, normaData) || 0;
+                    const comp = COMPOSITE_TESTS[item.key];
+                    const rawLbl = comp && targetTest._compositeRaw && targetTest._compositeRaw[item.key] ? comp.summaryLabel(targetTest._compositeRaw[item.key]) : null;
+                    const iconName = testIconMap[item.key] || 'Circle';
+                    const source = normaData || DEFAULT_NORMA_TES_FISIK;
+                    const norms = source[athAgKey]?.[athGender === 'Perempuan' ? 'Perempuan' : 'Laki']?.[item.key];
+                    const isLower = item.type === 'lower_better';
+                    const smallCircleR = 20;
+                    const smallCircumference = 2 * Math.PI * smallCircleR;
+                    const smallOffset = smallCircumference - (pct / 100) * smallCircumference;
+                    let prevVal = null;
+                    if (tests.length > 1) {
+                      const tIdx = tests.findIndex(t => t.id === targetTest.id);
+                      if (tIdx < tests.length - 1) {
+                        const prevTest = tests[tIdx + 1];
+                        if (prevTest[item.key] !== undefined && prevTest[item.key] !== null) prevVal = Number(prevTest[item.key]);
+                      }
+                    }
+                    let trendHtml = null;
+                    if (prevVal !== null) {
+                      const diff = Number(val) - prevVal;
+                      const isImproved = isLower ? diff < 0 : diff > 0;
+                      const isSame = diff === 0;
+                      const trendColor = isSame ? '#9ca3af' : isImproved ? '#16a34a' : '#dc2626';
+                      const trendIcon = isSame ? 'Minus' : isImproved ? 'TrendingUp' : 'TrendingDown';
+                      trendHtml = <div className="flex items-center gap-0.5 ml-auto" style={{color: trendColor}}><Icon name={trendIcon} className="w-3 h-3" /><span className="text-[9px] font-black">{diff > 0 ? '+' : ''}{diff}</span></div>;
+                    }
+                    return (
+                      <div key={item.key} className="bg-white rounded-2xl border shadow-sm overflow-hidden">
+                        <div className="p-3">
+                          <div className="flex items-start gap-3">
+                            <div className="relative shrink-0" style={{width: 52, height: 52}}>
+                              <svg width="52" height="52" viewBox="0 0 52 52">
+                                <circle cx="26" cy="26" r="20" fill="none" stroke="#f3f4f6" strokeWidth="5" />
+                                <circle cx="26" cy="26" r="20" fill="none" stroke={norm.color} strokeWidth="5" strokeDasharray={smallCircumference} strokeDashoffset={smallOffset} strokeLinecap="round" transform="rotate(-90 26 26)" style={{transition: 'stroke-dashoffset 0.6s ease'}} />
+                              </svg>
+                              <div className="absolute inset-0 flex items-center justify-center">
+                                <Icon name={iconName} className="w-4 h-4" style={{color: norm.color}} />
+                              </div>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-[11px] font-extrabold text-gray-800 truncate">{item.label}</span>
+                              </div>
+                              <p className="text-[9px] text-gray-400 font-medium mt-0.5 truncate">{item.description}</p>
+                              <div className="flex items-center gap-2 mt-1.5">
+                                <span className="text-lg font-black text-gray-900">{val}</span>
+                                <span className="text-[10px] font-bold text-gray-400">{item.unit}</span>
+                                <span className="text-[9px] font-black px-2 py-0.5 rounded-full text-white" style={{backgroundColor: norm.color}}>{norm.predikat}</span>
+                                {trendHtml}
+                              </div>
+                              {rawLbl && <p className="text-[9px] text-gray-500 mt-0.5 flex items-center gap-0.5"><Icon name="FileText" className="w-3 h-3" />{rawLbl}</p>}
+                            </div>
+                          </div>
+                          {/* Norm Zone Bar */}
+                          {norms && norms.length > 0 && (() => {
+                            const allMinVals = norms.map(n => n.min);
+                            const allMaxVals = norms.map(n => n.max);
+                            const globalMin = Math.min(...allMinVals);
+                            const globalMax = Math.max(...allMaxVals);
+                            const range = globalMax - globalMin || 1;
+                            const numVal = Number(val);
+                            const markerPct = Math.max(0, Math.min(100, ((numVal - globalMin) / range) * 100));
+                            return (
+                              <div className="mt-3">
+                                <div className="flex rounded-full overflow-hidden h-2.5">
+                                  {norms.map((n, ni) => {
+                                    const nMin = ((n.min - globalMin) / range) * 100;
+                                    const nMax = ((n.max - globalMin) / range) * 100;
+                                    const width = Math.max(1, nMax - nMin);
+                                    return <div key={ni} style={{width: width + '%', backgroundColor: n.color + '55', borderRight: ni < norms.length - 1 ? '1px solid white' : 'none'}} title={n.predikat + ': ' + n.min + ' - ' + n.max}></div>;
+                                  })}
+                                </div>
+                                <div className="relative h-3 mt-0.5">
+                                  <div className="absolute w-0.5 h-3 rounded-full" style={{left: markerPct + '%', backgroundColor: norm.color, top: 0, transform: 'translateX(-50%)'}}></div>
+                                </div>
+                                <div className="flex justify-between mt-0.5">
+                                  <span className="text-[7px] text-gray-400 font-bold">{isLower ? 'Lebih Baik \u2190' : 'Lebih Kurang'}</span>
+                                  <span className="text-[7px] text-gray-400 font-bold">{isLower ? 'Lebih Kurang' : 'Lebih Baik \u2192'}</span>
+                                </div>
+                              </div>
+                            );
+                        })()}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                {/* Bottom Actions */}
+                <div className="grid grid-cols-2 gap-2">
+                  <button onClick={() => handlePrintTest(selectedAthleteId)} className="bg-green-600 hover:bg-green-700 text-white py-2.5 rounded-2xl font-bold text-xs shadow flex justify-center items-center gap-1.5 transition">
+                    <Icon name="Printer" className="w-4 h-4" /> Print Profil
+                  </button>
+                  <button onClick={() => { setViewMode('detail'); setProfileTestId(null); if (chartInstanceRef2.current) { try { chartInstanceRef2.current.destroy(); } catch(e) {} chartInstanceRef2.current = null; } if (chartInstanceRef3.current) { try { chartInstanceRef3.current.destroy(); } catch(e) {} chartInstanceRef3.current = null; } }} className="bg-gray-200 hover:bg-gray-300 text-gray-700 py-2.5 rounded-2xl font-bold text-xs flex justify-center items-center gap-1.5 transition">
+                    <Icon name="ArrowLeft" className="w-4 h-4" /> Kembali
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="text-center py-10 bg-white rounded-2xl border">
+                <Icon name="ClipboardList" className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                <p className="text-xs text-gray-400 font-bold italic">Belum ada data tes fisik.</p>
+              </div>
+            )}
+          </div>
+        );
+      }
+      // ===== RENDER: ATHLETE DETAIL =====
+      if (viewMode === 'detail' && selectedAthleteId) {
+        const athlete = users.find(u => u.id === selectedAthleteId);
+        const tests = getAthleteTests(selectedAthleteId);
+        return (
+          <div className="space-y-4 animate-fade-in">
+            <div className="flex items-center justify-between">
+              <button onClick={() => { setSelectedAthleteId(null); setViewMode('list'); }} className="flex items-center gap-1 text-xs font-bold text-red-700 hover:text-red-800"><Icon name="ArrowLeft" className="w-4 h-4" /> Kembali</button>
+              <span className="text-[10px] text-gray-500 font-bold">Detail Atlet</span>
+            </div>
+            {athlete && (
+              <div className="bg-gradient-to-r from-red-700 to-red-900 rounded-2xl p-4 text-white">
+                <h3 className="font-black text-base">{athlete.name}</h3>
+                <p className="text-[10px] text-red-200 font-bold mt-0.5">{athlete.club} | {athlete.sabuk || '-'}</p>
+                {(() => { const detAge = getAthleteAge(athlete); const detAg = getAgeGroup(detAge); const detAgLabel = AGE_GROUPS.find(ag => ag.key === detAg)?.label || detAg; return athlete.gender ? <p className="text-[10px] text-red-100 mt-1">Norma berdasarkan: {athlete.gender} | Kelompok Umur: {detAgLabel}{detAge !== null ? ` (${detAge} thn)` : ' (Umur belum diisi)'}</p> : null; })()}
+              </div>
+            )}
+            <div className="grid grid-cols-4 gap-1.5">
+              <button onClick={() => { setProfileTestId(null); setChartMode('radar'); setViewMode('profile'); }} className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white py-2.5 rounded-2xl font-bold text-[10px] shadow flex flex-col justify-center items-center gap-0.5 transition">
+                <Icon name="Activity" className="w-4 h-4" /> <span>Profil</span>
+              </button>
+              <button onClick={() => { setChartMode('radar'); handleViewAllGraph(selectedAthleteId); }} className="bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-2xl font-bold text-[10px] shadow flex flex-col justify-center items-center gap-0.5 transition">
+                <Icon name="TrendingUp" className="w-4 h-4" /> <span>Grafik</span>
+              </button>
+              <button onClick={() => {
+                const availableKeys = effectiveTests.filter(item => tests.some(t => t[item.key] !== undefined && t[item.key] !== null)).map(item => item.key);
+                if (availableKeys.length === 0) { triggerToast('Belum ada data tes.', 'error'); return; }
+                setChartMode('line'); setSelectedTestKeys([availableKeys[0]]);
+                setViewMode('graph');
+              }} className="bg-purple-600 hover:bg-purple-700 text-white py-2.5 rounded-2xl font-bold text-[10px] shadow flex flex-col justify-center items-center gap-0.5 transition">
+                <Icon name="LineChart" className="w-4 h-4" /> <span>Pilih Tes</span>
+              </button>
+              <button onClick={() => handlePrintTest(selectedAthleteId)} className="bg-green-600 hover:bg-green-700 text-white py-2.5 rounded-2xl font-bold text-[10px] shadow flex flex-col justify-center items-center gap-0.5 transition">
+                <Icon name="Printer" className="w-4 h-4" /> <span>Print</span>
+              </button>
+            </div>
+            {(() => { const lt = tests[0]; if (!lt) return null; const profileTests = effectiveTests.filter(t => lt[t.key] !== undefined && lt[t.key] !== null); if (profileTests.length < 1) return null; const athAge = getAthleteAge(athlete) || lt.athleteAge; const athGender = athlete?.gender; const pcts = profileTests.map(t => normalizeTestValue(t.key, lt[t.key], athGender, athAge, normaData) || 0); const avgPct = pcts.length > 0 ? Math.round(pcts.reduce((a,b) => a+b, 0) / pcts.length) : 0; const overallPredikat = avgPct >= 80 ? 'Sangat Baik' : avgPct >= 60 ? 'Baik' : avgPct >= 40 ? 'Sedang' : avgPct >= 20 ? 'Kurang' : 'Sangat Kurang'; const overallColor = PREDIKAT_COLORS[overallPredikat] || '#9ca3af'; const scoreR = 28; const scoreC = 2 * Math.PI * scoreR; const scoreO = scoreC - (avgPct / 100) * scoreC; return (
+            <div onClick={() => { setProfileTestId(null); setChartMode('radar'); setViewMode('profile'); }} className="bg-white p-4 rounded-3xl border shadow-sm cursor-pointer hover:bg-gray-50 active:scale-[0.98] transition">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="relative" style={{width: 64, height: 64}}>
+                    <svg width="64" height="64" viewBox="0 0 64 64"><circle cx="32" cy="32" r="28" fill="none" stroke="#f3f4f6" strokeWidth="6" /><circle cx="32" cy="32" r="28" fill="none" stroke={overallColor} strokeWidth="6" strokeDasharray={scoreC} strokeDashoffset={scoreO} strokeLinecap="round" transform="rotate(-90 32 32)" style={{transition: 'stroke-dashoffset 0.6s ease'}} /></svg>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      <span className="text-sm font-black" style={{color: overallColor}}>{avgPct}</span>
+                      <span className="text-[7px] font-bold text-gray-400">SKOR</span>
+                    </div>
+                  </div>
+                  <div>
+                    <span className="font-extrabold text-xs text-gray-800 block">Profil Kebugaran</span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full text-white inline-block mt-1" style={{backgroundColor: overallColor}}>{overallPredikat}</span>
+                    <p className="text-[9px] text-gray-400 mt-1">{profileTests.length} item tes • Ketuk untuk detail</p>
+                  </div>
+                </div>
+                <Icon name="ChevronRight" className="w-5 h-5 text-gray-300" />
+              </div>
+            </div>
+          ); })()}
+            {tests.length === 0 && <div className="text-center py-8 bg-white rounded-2xl border"><Icon name="ClipboardList" className="w-10 h-10 text-gray-300 mx-auto mb-2" /><p className="text-xs text-gray-400 font-bold italic">Belum ada data tes fisik untuk atlet ini.</p></div>}
+            {tests.map(test => (
+              <div key={test.id} className="bg-white rounded-3xl border shadow-sm overflow-hidden">
+                <div className="flex justify-between items-center px-4 py-2 bg-gray-50 border-b">
+                  <span className="font-black text-xs text-gray-800">{new Date(test.testDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[9px] text-gray-400 font-bold">oleh {test.inputBy || test.updatedBy || '-'}</span>
+                    {canInput && (
+                      <>
+                        <button onClick={(e) => { e.stopPropagation(); handleEditTest(test); }} className="text-amber-500 hover:text-amber-700" title="Edit"><Icon name="Edit3" className="w-3.5 h-3.5" /></button>
+                        <button onClick={(e) => { e.stopPropagation(); handleDeleteTest(test.id); }} className="text-red-400 hover:text-red-600" title="Hapus"><Icon name="Trash2" className="w-3.5 h-3.5" /></button>
+                      </>
+                    )}
+                  </div>
+                </div>
+                <div className="p-3 space-y-2">
+                  {effectiveTests.map(item => {
+                    const val = test[item.key];
+                    if (val === undefined || val === null) return null;
+                    const norma = getNormaPredikat(item.key, test.athleteGender || athlete?.gender, getAthleteAge(athlete) || test.athleteAge, val, normaData);
+                    const comp = COMPOSITE_TESTS[item.key];
+                    const rawLabel = comp && test._compositeRaw && test._compositeRaw[item.key] ? comp.summaryLabel(test._compositeRaw[item.key]) : null;
+                    return (
+                      <div key={item.key} className="p-2 rounded-xl border" style={{backgroundColor: norma.color + '0a', borderColor: norma.color + '33'}}>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full shrink-0" style={{backgroundColor: norma.color}}></div>
+                            <span className="text-[11px] font-bold text-gray-700">{item.label}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-black text-gray-900">{val}</span>
+                            <span className="text-[9px] font-bold text-gray-500">{item.unit}</span>
+                            <span className="text-[8px] font-black px-1.5 py-0.5 rounded" style={{color: norma.color, backgroundColor: norma.color + '1a'}}>{norma.predikat}</span>
+                          </div>
+                        </div>
+                        {rawLabel && <div className="mt-1 ml-4 text-[9px] font-medium text-gray-500 flex items-center gap-1"><Icon name="FileText" className="w-3 h-3" />{rawLabel}</div>}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        );
+      }
+      // ===== RENDER: INPUT FORM =====
+      if (showInputForm) {
+        const inputAthletes = user.role === 'super_admin' ? athleteUsers : athleteUsers.filter(u => u.club === user.club);
+        return (
+          <div className="space-y-4 animate-fade-in">
+            <div className="flex items-center justify-between">
+              <button onClick={handleCancelEdit} className="flex items-center gap-1 text-xs font-bold text-red-700 hover:text-red-800"><Icon name="ArrowLeft" className="w-4 h-4" /> Kembali</button>
+              <span className="text-[10px] text-gray-500 font-bold">{editingTest ? 'Edit Hasil Tes Fisik' : 'Input Tes Fisik'}</span>
+            </div>
+            <form onSubmit={handleSaveTest} className="space-y-4">
+              <div className="bg-white p-4 rounded-3xl border shadow-sm space-y-3">
+                <span className="font-extrabold text-xs text-red-800 uppercase block border-b pb-1">Data Tes</span>
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-700 uppercase mb-1">Pilih Atlet *</label>
+                  <select name="athleteId" required value={formSelectedAthleteId} onChange={e => setFormSelectedAthleteId(e.target.value)} disabled={!!editingTest} className="w-full text-xs p-2.5 bg-gray-50 border rounded-xl font-bold" style={editingTest ? {opacity:0.6} : {}}>
+                    <option value="">-- Pilih Atlet --</option>
+                    {inputAthletes.map(a => { const aAge = getAthleteAge(a); const agKey = getAgeGroup(aAge); const agLabel = AGE_GROUPS.find(ag => ag.key === agKey)?.label || agKey; return <option key={a.id} value={a.id}>{a.name} ({a.club}) - {a.gender || '-'} - {agLabel}{aAge ? ' (' + aAge + ' thn)' : ''}</option>; })}
+                  </select>
+                </div>
+                {formSelectedAthleteId && (() => {
+                  const selAth = users.find(u => u.id === Number(formSelectedAthleteId));
+                  if (!selAth) return null;
+                  const selAge = getAthleteAge(selAth);
+                  const selAgKey = getAgeGroup(selAge);
+                  const selAgLabel = AGE_GROUPS.find(ag => ag.key === selAgKey)?.label || selAgKey;
+                  return (
+                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 space-y-1">
+                      <div className="flex items-center gap-2">
+                        <Icon name="User" className="w-3.5 h-3.5 text-blue-600" />
+                        <span className="text-[10px] font-bold text-blue-800">{selAth.name}</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-[9px]">
+                        <div className="flex items-center gap-1.5"><Icon name="Calendar" className="w-3 h-3 text-blue-500" /><span className="font-bold text-blue-700">Tgl Lahir: {selAth.dateOfBirth || '-'}</span></div>
+                        <div className="flex items-center gap-1.5"><Icon name="Hash" className="w-3 h-3 text-blue-500" /><span className="font-bold text-blue-700">Umur: {selAge !== null ? selAge + ' tahun' : 'Belum diisi'}</span></div>
+                        <div className="flex items-center gap-1.5"><Icon name="Users" className="w-3 h-3 text-blue-500" /><span className="font-bold text-blue-700">Jenis Kelamin: {selAth.gender || '-'}</span></div>
+                        <div className="flex items-center gap-1.5"><Icon name="Target" className="w-3 h-3 text-blue-500" /><span className="font-bold text-blue-700">Kelompok Umur: {selAgLabel}</span></div>
+                      </div>
+                      <div className="bg-blue-100/60 rounded-lg px-2.5 py-1.5 mt-1">
+                        <span className="text-[8px] font-bold text-blue-700">Norma standar otomatis diterapkan berdasarkan kelompok umur <b>{selAgLabel}</b> dan jenis kelamin <b>{selAth.gender || '-'}</b></span>
+                      </div>
+                    </div>
+                  );
+                })()}
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-700 uppercase mb-1">Tanggal Tes *</label>
+                  <input type="date" name="testDate" required defaultValue={editingTest ? editingTest.testDate : new Date().toISOString().split('T')[0]} disabled={!!editingTest} className="w-full text-xs p-2.5 bg-gray-50 border rounded-xl" style={editingTest ? {opacity:0.6} : {}} />
+                </div>
+              </div>
+              <div className="bg-white p-4 rounded-3xl border shadow-sm space-y-3">
+                <span className="font-extrabold text-xs text-red-800 uppercase block border-b pb-1">Hasil Tes Fisik</span>
+                <p className="text-[9px] text-gray-400 font-bold">Isi minimal satu tes. Biarkan kosong jika tidak diukur.</p>
+                {effectiveTests.map(item => {
+                  const comp = COMPOSITE_TESTS[item.key];
+                  if (comp) {
+                    return (
+                      <div key={item.key} className="bg-blue-50/50 border border-blue-100 rounded-xl p-3 space-y-2">
+                        <label className="block text-[10px] font-bold text-blue-800 uppercase">{item.label} <span className="text-blue-400 font-normal normal-case">({item.unit}) - Dihitung Otomatis</span></label>
+                        <p className="text-[8px] text-blue-500 font-medium">{item.description}</p>
+                        {comp.fields.map(f => (
+                          <div key={f.key}>
+                            <label className="block text-[10px] font-bold text-gray-700 mb-1">{f.label}</label>
+                            <input type="number" step="any" name={f.key} placeholder={f.placeholder} defaultValue={editingTest && editingTest._compositeRaw && editingTest._compositeRaw[item.key] ? editingTest._compositeRaw[item.key][f.key] || '' : ''} className="w-full text-xs p-2.5 bg-white border border-blue-200 rounded-xl font-bold" />
+                          </div>
+                        ))}
+                        <div className="bg-blue-100/60 rounded-lg px-3 py-2 flex items-center gap-2">
+                          <Icon name="Calculator" className="w-3.5 h-3.5 text-blue-600" />
+                          <span className="text-[9px] font-bold text-blue-700">Nilai {item.unit} akan dihitung otomatis dari data di atas</span>
+                        </div>
+                      </div>
+                    );
+                  }
+                  return (
+                    <div key={item.key}>
+                      <label className="block text-[10px] font-bold text-gray-700 uppercase mb-1">{item.label} <span className="text-gray-400 font-normal normal-case">({item.unit})</span></label>
+                      <input type="number" step="any" name={item.key} placeholder={`Masukkan ${item.label} (${item.unit})`} defaultValue={editingTest ? (editingTest[item.key] !== undefined && editingTest[item.key] !== null ? editingTest[item.key] : '') : ''} className="w-full text-xs p-2.5 bg-gray-50 border rounded-xl" />
+                      <p className="text-[8px] text-gray-400 mt-0.5 font-medium">{item.description}</p>
+                    </div>
+                  );
+                })}
+              </div>
+              <button type="submit" className="w-full bg-red-700 hover:bg-red-800 text-white py-3 rounded-xl font-bold text-xs shadow-lg flex justify-center items-center gap-2 transition">
+                <Icon name="Save" className="w-4 h-4" /> {editingTest ? 'Perbarui Hasil Tes Fisik' : 'Simpan Hasil Tes Fisik'}
+              </button>
+            </form>
+          </div>
+        );
+      }
+      // ===== RENDER: NORMA TABLE VIEW =====
+      if (showEditNorma) return renderEditNorma();
+      if (showNorma) return renderNormaTable();
+      // ===== RENDER: ADD CUSTOM TEST =====
+      if (showAddTest) {
+        return (
+          <div className="space-y-4 animate-fade-in">
+            <div className="flex items-center justify-between">
+              <button onClick={() => setShowAddTest(false)} className="flex items-center gap-1 text-xs font-bold text-red-700 hover:text-red-800"><Icon name="ArrowLeft" className="w-4 h-4" /> Kembali</button>
+              <span className="text-[10px] text-gray-500 font-bold">Tambah Bentuk Tes</span>
+            </div>
+            <div className="bg-gradient-to-r from-green-600 to-emerald-700 rounded-2xl p-4 text-white">
+              <h3 className="font-black text-sm">Tambah Bentuk Tes Fisik Baru</h3>
+              <p className="text-[10px] text-green-100 mt-1">Buat jenis tes fisik kustom. Standar norma default akan dibuat otomatis untuk semua kelompok umur dan jenis kelamin.</p>
+            </div>
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              const key = newTestKey.trim().replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
+              const label = newTestLabel.trim();
+              if (!key || !label) { triggerToast('Key dan Label wajib diisi!', 'error'); return; }
+              if (effectiveTests.some(t => t.key === key)) { triggerToast('Key tes sudah digunakan!', 'error'); return; }
+              const testData = { id: key, key, label, unit: newTestUnit.trim() || '', description: newTestDesc.trim(), type: newTestType };
+              addCustomTestType(testData);
+              const emptyNorms = PREDIKAT_LIST.map((p, i) => ({ predikat: p, min: 0, max: 0, color: Object.values(PREDIKAT_COLORS)[i] }));
+              AGE_GROUPS.forEach(ag => {
+                ['Laki', 'Perempuan'].forEach(g => {
+                  const docId = `norma_${ag.key}_${g}_${key}`;
+                  addPhysicalNorm({ id: docId, ageGroup: ag.key, gender: g, testKey: key, norms: emptyNorms });
+                });
+              });
+              triggerToast('Bentuk tes berhasil ditambahkan! Silakan edit norma standarnya.');
+              setShowAddTest(false);
+            }} className="space-y-4">
+              <div className="bg-white p-4 rounded-3xl border shadow-sm space-y-3">
+                <span className="font-extrabold text-xs text-green-800 uppercase block border-b pb-1">Detail Tes Baru</span>
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-700 uppercase mb-1">Key / Kode Tes * <span className="text-gray-400 font-normal">(contoh: pull_up, bent_knee_sit_up)</span></label>
+                  <input type="text" required value={newTestKey} onChange={e => setNewTestKey(e.target.value)} placeholder="Masukkan kode tes (tanpa spasi)" className="w-full text-xs p-2.5 bg-gray-50 border rounded-xl font-bold" />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-700 uppercase mb-1">Nama Tes * <span className="text-gray-400 font-normal">(contoh: Pull-up, Bent Knee Sit-up)</span></label>
+                  <input type="text" required value={newTestLabel} onChange={e => setNewTestLabel(e.target.value)} placeholder="Masukkan nama tes" className="w-full text-xs p-2.5 bg-gray-50 border rounded-xl font-bold" />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-700 uppercase mb-1">Satuan (Unit)</label>
+                    <input type="text" value={newTestUnit} onChange={e => setNewTestUnit(e.target.value)} placeholder="contoh: reps, detik, cm" className="w-full text-xs p-2.5 bg-gray-50 border rounded-xl font-bold" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-700 uppercase mb-1">Tipe Penilaian</label>
+                    <select value={newTestType} onChange={e => setNewTestType(e.target.value)} className="w-full text-xs p-2.5 bg-gray-50 border rounded-xl font-bold">
+                      <option value="higher_better">Makin Tinggi Makin Baik</option>
+                      <option value="lower_better">Makin Rendah Makin Baik</option>
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-700 uppercase mb-1">Deskripsi</label>
+                  <input type="text" value={newTestDesc} onChange={e => setNewTestDesc(e.target.value)} placeholder="Deskripsi singkat tes ini" className="w-full text-xs p-2.5 bg-gray-50 border rounded-xl" />
+                </div>
+              </div>
+              <button type="submit" className="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-xl font-bold text-xs shadow-lg flex justify-center items-center gap-2 transition">
+                <Icon name="PlusCircle" className="w-4 h-4" /> Tambah Bentuk Tes
+              </button>
+            </form>
+          </div>
+        );
+      }
+      // ===== RENDER: RANKING =====
+      if (showRanking) {
+        const rankings = buildRankingData();
+        const rTest = effectiveTests.find(t => t.key === rankingFilterTest);
+        return (
+          <div className="space-y-4 animate-fade-in">
+            <div className="flex items-center justify-between">
+              <button onClick={() => setShowRanking(false)} className="flex items-center gap-1 text-xs font-bold text-red-700 hover:text-red-800"><Icon name="ArrowLeft" className="w-4 h-4" /> Kembali</button>
+              <span className="text-[10px] text-gray-500 font-bold">Ranking Tes Fisik</span>
+            </div>
+            <div className="bg-gradient-to-r from-orange-600 to-red-700 rounded-2xl p-4 text-white">
+              <h3 className="font-black text-sm">Ranking Kemampuan Atlet</h3>
+              <p className="text-[10px] text-orange-100 mt-1">Peringkat atlet berdasarkan hasil tes fisik terbaru. Filter berdasarkan kelompok umur dan jenis kelamin.</p>
+            </div>
+            <div className="bg-white p-3 rounded-3xl border shadow-sm space-y-2">
+              <span className="font-extrabold text-xs text-red-800 uppercase block border-b pb-1">Filter Ranking</span>
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="block text-[9px] font-bold text-gray-500 uppercase mb-1">Jenis Tes</label>
+                  <select value={rankingFilterTest} onChange={e => setRankingFilterTest(e.target.value)} className="w-full text-[10px] p-2 bg-gray-50 border rounded-xl font-bold">
+                    {effectiveTests.map(t => <option key={t.key} value={t.key}>{t.label}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[9px] font-bold text-gray-500 uppercase mb-1">Kel. Umur</label>
+                  <select value={rankingFilterAge} onChange={e => setRankingFilterAge(e.target.value)} className="w-full text-[10px] p-2 bg-gray-50 border rounded-xl font-bold">
+                    <option value="Semua">Semua Umur</option>
+                    {AGE_GROUPS.map(ag => <option key={ag.key} value={ag.key}>{ag.label}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[9px] font-bold text-gray-500 uppercase mb-1">Jenis Kelamin</label>
+                  <select value={rankingFilterGender} onChange={e => setRankingFilterGender(e.target.value)} className="w-full text-[10px] p-2 bg-gray-50 border rounded-xl font-bold">
+                    <option value="Semua">Semua</option>
+                    <option value="Laki-laki">Laki-laki</option>
+                    <option value="Perempuan">Perempuan</option>
+                  </select>
+                </div>
+              </div>
+              <button onClick={handlePrintRanking} className="w-full bg-green-600 hover:bg-green-700 text-white py-2 rounded-xl font-bold text-xs flex justify-center items-center gap-1.5 transition mt-1">
+                <Icon name="Printer" className="w-3.5 h-3.5" /> Print Ranking
+              </button>
+            </div>
+            {rTest && <div className="bg-blue-50 border border-blue-200 rounded-2xl p-3 flex items-center gap-2">
+              <Icon name="Trophy" className="w-4 h-4 text-blue-600" />
+              <span className="text-[10px] font-bold text-blue-800">Mengurutkan berdasarkan: <b>{rTest.label}</b> ({rTest.type === 'higher_better' ? 'Tertinggi terbaik' : 'Terendah terbaik'})</span>
+            </div>}
+            {rankings.length === 0 && <div className="text-center py-8 bg-white rounded-2xl border"><Icon name="Trophy" className="w-10 h-10 text-gray-300 mx-auto mb-2" /><p className="text-xs text-gray-400 font-bold italic">Belum ada data ranking untuk filter ini.</p></div>}
+            {rankings.map((r, idx) => {
+              const norm = getNormaPredikat(rankingFilterTest, r.gender, r.age, r.value, normaData);
+              const rankBg = idx === 0 ? 'bg-gradient-to-r from-yellow-50 to-amber-50 border-yellow-300' : (idx === 1 ? 'bg-gradient-to-r from-gray-50 to-slate-50 border-gray-300' : (idx === 2 ? 'bg-gradient-to-r from-orange-50 to-amber-50 border-orange-200' : 'bg-white border-gray-200'));
+              return (
+                <div key={r.athleteId} className={rankBg + ' rounded-2xl border shadow-sm p-3'}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-full flex items-center justify-center font-black text-xs shrink-0" style={{backgroundColor: norm.color + '20', color: norm.color}}>
+                        {idx < 3 ? <Icon name="Trophy" className="w-4 h-4" /> : (idx + 1)}
+                      </div>
+                      <div>
+                        <div className="font-black text-xs text-gray-800">{r.name}</div>
+                        <div className="text-[9px] text-gray-500 font-bold">{r.club} | {r.gender} | {r.sabuk || '-'}</div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-black text-base text-gray-900">{r.value}</div>
+                      <div className="text-[9px] font-bold text-gray-500">{rTest?.unit || ''}</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between mt-1.5 pt-1.5 border-t" style={{borderColor: norm.color + '22'}}>
+                    <span className="text-[9px] text-gray-400 font-bold">Umur: {r.age !== null ? r.age + ' thn' : '-'} | {AGE_GROUPS.find(a => a.key === r.ageGroup)?.label || '-'}</span>
+                    <span className="text-[9px] font-black px-2 py-0.5 rounded-full" style={{color: norm.color, backgroundColor: norm.color + '18', border: '1px solid ' + norm.color + '33'}}>{norm.predikat}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        );
+      }
+            // ===== RENDER: MAIN LIST =====
+      return (
+        <div className="space-y-4 animate-fade-in">
+          <div className="flex justify-between items-center">
+            <h3 className="font-extrabold text-sm text-gray-800 flex items-center gap-1.5"><Icon name="HeartPulse" className="w-4 h-4 text-red-600" /> Tes Fisik Atlet</h3>
+            <div className="flex gap-1.5">
+              <button onClick={() => setShowNorma(true)} className="bg-blue-50 hover:bg-blue-100 text-blue-700 p-1.5 rounded-xl transition" title="Lihat Norma Standar"><Icon name="BookOpen" className="w-4 h-4" /></button>
+              {canEditNorma && (
+                <button onClick={() => { setEditNormaAgeGroup('20-29'); setEditNormaGender('Laki'); setEditNormaTestKey(effectiveTests[0].key); loadEditNormaValues('20-29', 'Laki', effectiveTests[0].key); setShowEditNorma(true); }} className="bg-amber-50 hover:bg-amber-100 text-amber-700 p-1.5 rounded-xl transition" title="Edit Norma Standar"><Icon name="Settings" className="w-4 h-4" /></button>
+              )}
+              {canInput && (
+                <button onClick={() => { setEditingTest(null); setFormSelectedAthleteId(''); setShowInputForm(true); }} className="bg-red-700 hover:bg-red-800 text-white p-1.5 rounded-xl transition shadow-sm" title="Input Tes Fisik Baru"><Icon name="Plus" className="w-4 h-4" /></button>
+              )}
+            </div>
+          </div>
+          {user.role === 'super_admin' && (
+            <div>
+              <label className="block text-[10px] font-bold text-gray-700 uppercase mb-1">Filter Club</label>
+              <select value={filterClub} onChange={e => setFilterClub(e.target.value)} className="w-full text-xs p-2.5 bg-gray-50 border rounded-xl font-bold">
+                <option value="Semua Club">Semua Club</option>
+                {clubs.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+          )}
+          {isPelatih && (
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3 flex items-center gap-2">
+              <Icon name="Eye" className="w-4 h-4 text-amber-600 shrink-0" />
+              <span className="text-[10px] font-bold text-amber-800">Mode lihat: Anda dapat melihat hasil tes fisik seluruh atlet, namun tidak dapat menginput data.</span>
+            </div>
+          )}
+          {filteredAthletes.length === 0 && <div className="text-center py-8 bg-white rounded-2xl border"><Icon name="Users" className="w-10 h-10 text-gray-300 mx-auto mb-2" /><p className="text-xs text-gray-400 font-bold italic">Tidak ada atlet yang tersedia.</p></div>}
+          {filteredAthletes.map(athlete => {
+            const tests = getAthleteTests(athlete.id);
+            const latestTest = tests[0];
+            return (
+              <div key={athlete.id} onClick={() => { setSelectedAthleteId(athlete.id); setViewMode('detail'); }} className="bg-white rounded-3xl border shadow-sm p-4 cursor-pointer hover:bg-gray-50 transition active:scale-[0.98]">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    {athlete.avatar ? <img src={athlete.avatar} className="w-9 h-9 rounded-full object-cover border" alt="" /> : <div className="w-9 h-9 rounded-full bg-red-100 flex items-center justify-center"><Icon name="User" className="w-4 h-4 text-red-400" /></div>}
+                    <div>
+                      <div className="font-black text-sm text-gray-800">{athlete.name}</div>
+                      <div className="text-[9px] text-gray-500 font-bold">{athlete.club} | {(() => { const la = getAthleteAge(athlete); const lag = getAgeGroup(la); return AGE_GROUPS.find(ag => ag.key === lag)?.label || lag; })()}{(() => { const la2 = getAthleteAge(athlete); return la2 !== null ? ' (' + la2 + ' thn)' : ''; })()}</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {(() => { const lt = tests[0]; if (!lt) return <span className="text-[9px] font-bold text-gray-400">{tests.length}x tes</span>; const pts = effectiveTests.filter(t => lt[t.key] != null).map(t => normalizeTestValue(t.key, lt[t.key], athlete.gender, getAthleteAge(athlete), normaData) || 0); const avg = pts.length > 0 ? Math.round(pts.reduce((a,b)=>a+b,0)/pts.length) : 0; const op = avg >= 80 ? 'Sangat Baik' : avg >= 60 ? 'Baik' : avg >= 40 ? 'Sedang' : avg >= 20 ? 'Kurang' : 'Sangat Kurang'; const oc = PREDIKAT_COLORS[op] || '#9ca3af'; const mr = 14; const mc = 2 * Math.PI * mr; const mo = mc - (avg / 100) * mc; return (
+                      <div className="flex items-center gap-2">
+                        <div className="relative" style={{width:34,height:34}}><svg width="34" height="34" viewBox="0 0 34 34"><circle cx="17" cy="17" r="14" fill="none" stroke="#f3f4f6" strokeWidth="3" /><circle cx="17" cy="17" r="14" fill="none" stroke={oc} strokeWidth="3" strokeDasharray={mc} strokeDashoffset={mo} strokeLinecap="round" transform="rotate(-90 17 17)" /></svg><div className="absolute inset-0 flex items-center justify-center"><span className="text-[8px] font-black" style={{color:oc}}>{avg}</span></div></div>
+                        <div className="text-right"><span className="text-[9px] font-black block" style={{color:oc}}>{op}</span><span className="text-[8px] text-gray-400 font-bold">{tests.length}x tes</span></div>
+                        <Icon name="ChevronRight" className="w-4 h-4 text-gray-300" />
+                      </div>
+                    ); })()}
+                  </div>
+                </div>
+                {athlete.sabuk && <VisualBelt beltName={athlete.sabuk} className="mb-2" />}
+                {latestTest ? (
+                  <div className="border-t pt-2 mt-1 space-y-1">
+                    <div className="text-[9px] font-bold text-gray-400 uppercase">Tes Terakhir: {new Date(latestTest.testDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
+                    <div className="flex flex-wrap gap-1">
+                      {effectiveTests.map(item => {
+                        const val = latestTest[item.key];
+                        if (val === undefined || val === null) return null;
+                        const norma = getNormaPredikat(item.key, athlete.gender, getAthleteAge(athlete), val, normaData);
+                        const comp = COMPOSITE_TESTS[item.key];
+                        const rawLbl = comp && latestTest._compositeRaw && latestTest._compositeRaw[item.key] ? comp.summaryLabel(latestTest._compositeRaw[item.key]) : null;
+                        return (
+                          <span key={item.key} className="text-[8px] font-bold px-1.5 py-0.5 rounded-full border" style={{color: norma.color, backgroundColor: norma.color + '15', borderColor: norma.color + '33'}} title={rawLbl || ''}>
+                            {item.label}: {val}{rawLbl ? ' (' + rawLbl + ')' : ''}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-[10px] text-gray-400 italic font-medium">Belum ada data tes fisik</p>
+                )}
+              </div>
+            );
+          })}
+          {/* Ranking card */}
+          <button onClick={() => setShowRanking(true)} className="w-full bg-gradient-to-r from-orange-50 to-yellow-50 border border-orange-200 rounded-3xl p-4 flex items-center gap-3 hover:from-orange-100 hover:to-yellow-100 transition">
+            <div className="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center shrink-0"><Icon name="Trophy" className="w-5 h-5 text-orange-600" /></div>
+            <div className="text-left"><div className="font-black text-xs text-gray-800">Ranking Kemampuan Atlet</div><div className="text-[9px] text-gray-500 font-bold">Peringkat performa atlet berdasarkan jenis tes, kelompok umur, dan jenis kelamin</div></div>
+          </button>
+          {/* Norma preview card */}
+          <button onClick={() => setShowNorma(true)} className="w-full bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-100 rounded-3xl p-4 flex items-center gap-3 hover:from-blue-100 hover:to-purple-100 transition">
+            <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center shrink-0"><Icon name="BookOpen" className="w-5 h-5 text-blue-600" /></div>
+            <div className="text-left"><div className="font-black text-xs text-gray-800">Lihat Norma Standar Tes Fisik</div><div className="text-[9px] text-gray-500 font-bold">Norma berdasarkan 6 kelompok umur (6-9, 10-12, 13-15, 16-19, 20-29, 30+) dan jenis kelamin</div></div>
+          </button>
+          {canInput && (
+            <button onClick={() => { setNewTestKey(''); setNewTestLabel(''); setNewTestUnit(''); setNewTestDesc(''); setNewTestType('higher_better'); setShowAddTest(true); }} className="w-full bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-3xl p-4 flex items-center gap-3 hover:from-green-100 hover:to-emerald-100 transition">
+              <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center shrink-0"><Icon name="PlusCircle" className="w-5 h-5 text-green-600" /></div>
+              <div className="text-left"><div className="font-black text-xs text-gray-800">Tambah Bentuk Tes Baru</div><div className="text-[9px] text-gray-500 font-bold">Tambahkan jenis tes fisik kustom beserta standar normanya</div></div>
+            </button>
+          )}
+          {customTestTypes && customTestTypes.length > 0 && canInput && (
+            <div className="bg-white rounded-3xl border shadow-sm overflow-hidden">
+              <div className="px-4 py-2 bg-gradient-to-r from-green-50 to-emerald-50 font-extrabold text-xs uppercase tracking-wider text-green-800 border-b border-green-100">Tes Kustom</div>
+              {customTestTypes.map(ct => (
+                <div key={ct.id || ct.key} className="flex items-center justify-between px-4 py-2 border-b last:border-b-0 hover:bg-gray-50">
+                  <div>
+                    <div className="font-bold text-xs text-gray-800">{ct.label}</div>
+                    <div className="text-[9px] text-gray-400">{ct.unit} | {ct.type === 'higher_better' ? 'Makin tinggi makin baik' : 'Makin rendah makin baik'}</div>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <button onClick={() => { setEditNormaAgeGroup('20-29'); setEditNormaGender('Laki'); setEditNormaTestKey(ct.key); loadEditNormaValues('20-29', 'Laki', ct.key); setShowEditNorma(true); }} className="text-amber-500 hover:text-amber-700" title="Edit Norma"><Icon name="Settings" className="w-3.5 h-3.5" /></button>
+                    <button onClick={() => { if (window.confirm('Hapus bentuk tes "' + ct.label + '"? Norma terkait juga akan dihapus.')) { deleteCustomTestType(ct.id || ct.key); triggerToast('Tes kustom dihapus.'); } }} className="text-red-400 hover:text-red-600" title="Hapus Tes"><Icon name="Trash2" className="w-3.5 h-3.5" /></button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    }
+
     function MainAppContainer() {
       const [authUser, setAuthUser] = useState(null);
       const [isAppReady, setIsAppReady] = useState(false);
@@ -967,6 +2754,9 @@
                     await seedData('sppBills', initialSppBills);
                     await seedData('sppPayments', initialSppPayments);
                     await seedData('sanctions', initialSanctions);
+                    await seedData('physicalTests', []);
+                    await seedData('physicalNorms', []);
+                    await seedData('customTestTypes', []);
                     await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'featureSettings', 'global'), initialFeatureSettings);
                     
                     await setDoc(sysRef, { isSeeded: true });
@@ -1038,6 +2828,9 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
       const [sppBills, addSppBill, updateSppBill, deleteSppBill] = useDbCollection('sppBills', initialSppBills, authUser);
       const [sppPayments, addSppPayment, updateSppPayment, deleteSppPayment] = useDbCollection('sppPayments', initialSppPayments, authUser);
       const [sanctions, addSanction, updateSanction, deleteSanction] = useDbCollection('sanctions', initialSanctions, authUser);
+      const [physicalTests, addPhysicalTest, updatePhysicalTest, deletePhysicalTest] = useDbCollection('physicalTests', [], authUser);
+      const [physicalNorms, addPhysicalNorm, updatePhysicalNorm] = useDbCollection('physicalNorms', [], authUser);
+      const [customTestTypes, addCustomTestType, updateCustomTestType, deleteCustomTestType] = useDbCollection('customTestTypes', [], authUser);
 
       const [featureSettings, setFeatureSettings] = useState(initialFeatureSettings);
 
@@ -1063,7 +2856,7 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
       const triggerToast = (message, type = 'success') => { toastToast({ show: true, message, type }); setTimeout(() => setToast(prev => ({ ...prev, show: false })), 4000); };
       const toastToast = (toastObj) => setToast(toastObj);
 
-      if (!user) return <LoginScreen onLogin={setUser} users={users} appLogo={featureSettings?.branding?.logo} />;
+      if (!user) return <LoginScreen onLogin={setUser} users={users} appLogo={featureSettings?.branding?.logo} addUser={addUser} clubsData={clubsData} />;
       const activeUser = users.find(u => u.id === user.id) || user;
 
       const isFeatureAllowed = (role, featureKey) => {
@@ -1091,7 +2884,10 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
           Absensi: attendances,
           Tagihan_SPP: sppBills,
           Pembayaran_SPP: sppPayments,
-          Sanksi_Pelanggaran: sanctions
+          Sanksi_Pelanggaran: sanctions,
+          Tes_Fisik: physicalTests,
+          Norma_Tes_Fisik: physicalNorms,
+          Tipe_Tes_Kustom: customTestTypes
         };
 
         try {
@@ -1112,7 +2908,7 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
         const allDataPayload = {
           users, clubsData, uktEvents, championships, articles,
           uktRegistrations, champRegistrations, athletePoints,
-          historicalRaports, attendances, sppBills, sppPayments, sanctions, featureSettings
+          historicalRaports, attendances, sppBills, sppPayments, sanctions, physicalTests, physicalNorms, customTestTypes, featureSettings
         };
         const blob = new Blob([JSON.stringify(allDataPayload, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
@@ -1146,6 +2942,9 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
             if(parsed.sppBills) { parsed.sppBills.forEach(item => {addSppBill(item); count++;}); }
             if(parsed.sppPayments) { parsed.sppPayments.forEach(item => {addSppPayment(item); count++;}); }
             if(parsed.sanctions) { parsed.sanctions.forEach(item => {addSanction(item); count++;}); }
+            if(parsed.physicalTests) { parsed.physicalTests.forEach(item => {addPhysicalTest(item); count++;}); }
+            if(parsed.physicalNorms) { parsed.physicalNorms.forEach(item => {addPhysicalNorm(item); count++;}); }
+            if(parsed.customTestTypes) { parsed.customTestTypes.forEach(item => {addCustomTestType(item); count++;}); }
             if(parsed.featureSettings) { updateFeatureSettingsOnDb(parsed.featureSettings); }
             
             triggerToast(`Pemulihan berhasil! ${count} entri data direstore.`, "success");
@@ -1201,6 +3000,12 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
             }
             return <ChampionshipView user={activeUser} events={championships} addChamp={addChamp} updateChamp={updateChamp} deleteChamp={deleteChamp} registrations={champRegistrations} addChampReg={addChampReg} updateChampReg={updateChampReg} triggerToast={triggerToast} users={users} points={athletePoints} addPoint={addPoint} />;
           
+          case 'tes_fisik':
+            if (!isFeatureAllowed(activeUser.role, 'tes_fisik')) {
+              return <div className="text-center py-10 font-bold text-gray-400">Anda tidak diizinkan mengakses modul Tes Fisik.</div>;
+            }
+            return <TesFisikView user={activeUser} users={users} physicalTests={physicalTests} physicalNorms={physicalNorms} addPhysicalTest={addPhysicalTest} updatePhysicalTest={updatePhysicalTest} deletePhysicalTest={deletePhysicalTest} addPhysicalNorm={addPhysicalNorm} updatePhysicalNorm={updatePhysicalNorm} customTestTypes={customTestTypes} addCustomTestType={addCustomTestType} updateCustomTestType={updateCustomTestType} deleteCustomTestType={deleteCustomTestType} triggerToast={triggerToast} isFeatureAllowed={isFeatureAllowed} featureSettings={featureSettings} />;
+
           case 'poin': 
             if (!isFeatureAllowed(activeUser.role, 'poin')) {
               return <div className="text-center py-10 font-bold text-gray-400">Anda tidak diizinkan mengakses modul Poin.</div>;
@@ -1261,6 +3066,7 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
               <NavItem icon="FileText" label="UKT" active={currentTab === 'ukt'} onClick={() => setCurrentTab('ukt')} />
               <NavItem icon="Award" label="Event" active={currentTab === 'kejuaraan'} onClick={() => setCurrentTab('kejuaraan')} />
               <NavItem icon="Activity" label="Poin" active={currentTab === 'poin'} onClick={() => setCurrentTab('poin')} />
+              <NavItem icon="HeartPulse" label="Tes Fisik" active={currentTab === 'tes_fisik'} onClick={() => setCurrentTab('tes_fisik')} />
               {(user.role === 'super_admin' || user.role === 'pengurus_club') && <NavItem icon="Users" label="Akun" active={currentTab === 'akun'} onClick={() => setCurrentTab('akun')} />}
             </nav>
           </div>
@@ -6391,6 +8197,12 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
                       <div className="flex justify-between items-center p-2 bg-gray-50 rounded-xl border">
                         <span>Modul Poin</span>
                         <button type="button" onClick={() => handleToggleFeature(roleKey, 'poin')} className={`w-10 h-6 rounded-full p-1 transition-all duration-300 ${featureSettings[roleKey]?.poin !== false ? 'bg-red-600 text-right' : 'bg-gray-300 text-left'}`}>
+                          <div className="w-4 h-4 bg-white rounded-full shadow-md inline-block"></div>
+                        </button>
+                      </div>
+                      <div className="flex justify-between items-center p-2 bg-gray-50 rounded-xl border">
+                        <span>Modul Tes Fisik</span>
+                        <button type="button" onClick={() => handleToggleFeature(roleKey, 'tes_fisik')} className={`w-10 h-6 rounded-full p-1 transition-all duration-300 ${featureSettings[roleKey]?.tes_fisik !== false ? 'bg-red-600 text-right' : 'bg-gray-300 text-left'}`}>
                           <div className="w-4 h-4 bg-white rounded-full shadow-md inline-block"></div>
                         </button>
                       </div>
