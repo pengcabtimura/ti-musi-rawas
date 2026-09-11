@@ -267,6 +267,52 @@
       { id: 2, title: 'Musi Rawas Bersiap Kirim Atlet Terbaik ke Kejurda', content: 'Persiapan latihan fisik intensif kyorugi dan poomsae terus dimatangkan agar mendapatkan hasil terbaik.', author: 'Super Admin', role: 'super_admin', club: 'Pusat Mura', date: '25 Mei 2026', category: 'Berita', targetAudience: 'atlet_pelatih' }
     ];
     const initialPoints = [{ id: 1, athleteId: 4, eventName: 'Kejurda Sumsel 2025', level: 'Provinsi', category: 'Kyorugi', division: 'Prestasi', achievement: 'Juara (Emas)', points: 4, weightClass: 'Under 54kg', poomsaeCategory: '', score: '' }];
+    // ===== PENGATURAN POIN KEGIATAN (Task 5) =====
+    // Nilai default = perilaku lama yang hardcode; admin dapat mengubahnya via tab Pengaturan (Sistem Poin).
+    const POINT_RULES = [
+      { id: 'ukt_mengikuti', label: 'Mengikuti UKT / Diklat', group: 'ukt', def: 3 },
+      { id: 'ukt_lulus', label: 'Lulus UKT (Kenaikan Sabuk)', group: 'ukt', def: 5 },
+      { id: 'event_kabupaten', label: 'Kabupaten', group: 'event', def: 1 },
+      { id: 'event_provinsi', label: 'Provinsi', group: 'event', def: 2 },
+      { id: 'event_nasional', label: 'Nasional', group: 'event', def: 3 },
+      { id: 'partisipasi_kabupaten', label: 'Kabupaten', group: 'partisipasi', def: 1 },
+      { id: 'partisipasi_provinsi', label: 'Provinsi', group: 'partisipasi', def: 2 },
+      { id: 'partisipasi_nasional', label: 'Nasional', group: 'partisipasi', def: 3 },
+      { id: 'pemula_emas_kabupaten', label: 'Emas — Kabupaten', group: 'pemula', def: 1 },
+      { id: 'pemula_emas_provinsi', label: 'Emas — Provinsi', group: 'pemula', def: 2 },
+      { id: 'pemula_emas_nasional', label: 'Emas — Nasional', group: 'pemula', def: 3 },
+      { id: 'pemula_perak_kabupaten', label: 'Perak — Kabupaten', group: 'pemula', def: 0 },
+      { id: 'pemula_perak_provinsi', label: 'Perak — Provinsi', group: 'pemula', def: 1 },
+      { id: 'pemula_perak_nasional', label: 'Perak — Nasional', group: 'pemula', def: 2 },
+      { id: 'pemula_perunggu_kabupaten', label: 'Perunggu — Kabupaten', group: 'pemula', def: 0 },
+      { id: 'pemula_perunggu_provinsi', label: 'Perunggu — Provinsi', group: 'pemula', def: 1 },
+      { id: 'pemula_perunggu_nasional', label: 'Perunggu — Nasional', group: 'pemula', def: 2 },
+      { id: 'semiprestasi_emas_kabupaten', label: 'Emas — Kabupaten', group: 'semiprestasi', def: 2 },
+      { id: 'semiprestasi_emas_provinsi', label: 'Emas — Provinsi', group: 'semiprestasi', def: 3 },
+      { id: 'semiprestasi_emas_nasional', label: 'Emas — Nasional', group: 'semiprestasi', def: 4 },
+      { id: 'semiprestasi_perak_kabupaten', label: 'Perak — Kabupaten', group: 'semiprestasi', def: 1 },
+      { id: 'semiprestasi_perak_provinsi', label: 'Perak — Provinsi', group: 'semiprestasi', def: 2 },
+      { id: 'semiprestasi_perak_nasional', label: 'Perak — Nasional', group: 'semiprestasi', def: 3 },
+      { id: 'semiprestasi_perunggu_kabupaten', label: 'Perunggu — Kabupaten', group: 'semiprestasi', def: 0 },
+      { id: 'semiprestasi_perunggu_provinsi', label: 'Perunggu — Provinsi', group: 'semiprestasi', def: 1 },
+      { id: 'semiprestasi_perunggu_nasional', label: 'Perunggu — Nasional', group: 'semiprestasi', def: 2 },
+      { id: 'prestasi_emas_kabupaten', label: 'Emas — Kabupaten', group: 'prestasi', def: 3 },
+      { id: 'prestasi_emas_provinsi', label: 'Emas — Provinsi', group: 'prestasi', def: 4 },
+      { id: 'prestasi_emas_nasional', label: 'Emas — Nasional', group: 'prestasi', def: 5 },
+      { id: 'prestasi_perak_kabupaten', label: 'Perak — Kabupaten', group: 'prestasi', def: 2 },
+      { id: 'prestasi_perak_provinsi', label: 'Perak — Provinsi', group: 'prestasi', def: 3 },
+      { id: 'prestasi_perak_nasional', label: 'Perak — Nasional', group: 'prestasi', def: 4 },
+      { id: 'prestasi_perunggu_kabupaten', label: 'Perunggu — Kabupaten', group: 'prestasi', def: 1 },
+      { id: 'prestasi_perunggu_provinsi', label: 'Perunggu — Provinsi', group: 'prestasi', def: 2 },
+      { id: 'prestasi_perunggu_nasional', label: 'Perunggu — Nasional', group: 'prestasi', def: 3 }
+    ];
+    const initialPointSettings = POINT_RULES.map(r => ({ id: r.id, label: r.label, value: r.def }));
+    const getPoinRulesMap = (arr) => {
+      const map = {};
+      POINT_RULES.forEach(r => { map[r.id] = r.def; });
+      (arr || []).forEach(s => { if (s && s.id && s.value !== undefined && !isNaN(Number(s.value))) map[s.id] = Number(s.value); });
+      return map;
+    };
     const initialHistoricalRaports = [
       { id: 501, athleteId: 4, period: 'Periode I', executionDate: '2026-05-10', currentBelt: 'Sabuk Hijau Polos (Geup 7)', targetBelt: 'Sabuk Hijau Strip Biru (Geup 6)', passStatus: 'Lulus', raport: { pukulan: 8, tangkisan: 7, tendangan: 8, kudaKuda: 8, taegeuk: 8, kyorugi: 7, fisik: 8, pengetahuan: 7, kyukpa: 7, mental: 8, totalScore: 76, examiner: 'Super Admin', notes: 'Sikap kuda-kuda kokoh dan tendangan terarah.', ketuaName: 'PENGKAB TI MUSI RAWAS' } }
     ];
@@ -278,7 +324,8 @@
       pengurus_club: { absensi: true, spp: true, sanksi: true, ukt: true, kejuaraan: true, poin: true, tes_fisik: true },
       pelatih: { absensi: true, spp: false, sanksi: true, ukt: false, kejuaraan: true, poin: true, tes_fisik: true },
       atlet: { absensi: true, spp: true, sanksi: true, ukt: true, kejuaraan: true, poin: true, tes_fisik: true },
-      branding: { logo: null }
+      branding: { logo: null },
+      login: { registrasi: true }
     };
 
     function KtaModal({ user, onClose, triggerToast, featureSettings }) {
@@ -475,7 +522,7 @@
       return [data, add, update, remove];
     }
 
-    function LoginScreen({ onLogin, users, appLogo, addUser, clubsData }) {
+    function LoginScreen({ onLogin, users, appLogo, addUser, clubsData, featureSettings }) {
       const [usernameInput, setUsernameInput] = useState(''); const [passwordInput, setPasswordInput] = useState(''); const [errorMsg, setErrorMsg] = useState('');
       const [showRegister, setShowRegister] = useState(false);
       const [regName, setRegName] = useState(''); const [regUsername, setRegUsername] = useState('');
@@ -566,11 +613,13 @@
                     <Icon name="LogIn" className="w-5 h-5" /> Masuk ke Sistem
                   </button>
                 </form>
+                {featureSettings?.login?.registrasi !== false && (
                 <div className="mt-5 text-center">
                   <button onClick={() => { setShowRegister(true); setErrorMsg(''); setRegNotif({ show: false, msg: '', type: 'error' }); setRegSuccess(false); }} className="text-xs font-bold text-red-600 hover:text-red-700 hover:underline transition">
                     Belum punya akun? <span className="font-black">Registrasi Atlet</span>
                   </button>
                 </div>
+                )}
               </>
             ) : (
               <>
@@ -2749,6 +2798,7 @@
                     await seedData('championships', initialChampionships);
                     await seedData('articles', initialArticles);
                     await seedData('athletePoints', initialPoints);
+                    await seedData('pointSettings', initialPointSettings);
                     await seedData('historicalRaports', initialHistoricalRaports);
                     await seedData('attendances', initialAttendances);
                     await seedData('sppBills', initialSppBills);
@@ -2822,6 +2872,8 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
       const [uktRegistrations, addUktReg, updateUktReg, deleteUktReg] = useDbCollection('uktRegistrations', [], authUser);
       const [champRegistrations, addChampReg, updateChampReg, deleteChampReg] = useDbCollection('champRegistrations', [], authUser);
       const [athletePoints, addPoint, updatePoint, deletePoint] = useDbCollection('athletePoints', initialPoints, authUser);
+      const [pointSettings, addPointSetting, updatePointSetting] = useDbCollection('pointSettings', initialPointSettings, authUser);
+      const poinRules = getPoinRulesMap(pointSettings);
       const [historicalRaports, addRaport, updateRaport, deleteRaport] = useDbCollection('historicalRaports', initialHistoricalRaports, authUser);
       const [clubsData, addClub, updateClub, deleteClub] = useDbCollection('clubs', initialClubs, authUser);
       const [attendances, addAttendance, updateAttendance, deleteAttendance] = useDbCollection('attendances', initialAttendances, authUser);
@@ -2856,7 +2908,7 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
       const triggerToast = (message, type = 'success') => { toastToast({ show: true, message, type }); setTimeout(() => setToast(prev => ({ ...prev, show: false })), 4000); };
       const toastToast = (toastObj) => setToast(toastObj);
 
-      if (!user) return <LoginScreen onLogin={setUser} users={users} appLogo={featureSettings?.branding?.logo} addUser={addUser} clubsData={clubsData} />;
+      if (!user) return <LoginScreen onLogin={setUser} users={users} appLogo={featureSettings?.branding?.logo} addUser={addUser} clubsData={clubsData} featureSettings={featureSettings} />;
       const activeUser = users.find(u => u.id === user.id) || user;
 
       const isFeatureAllowed = (role, featureKey) => {
@@ -2992,13 +3044,13 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
             if (!isFeatureAllowed(activeUser.role, 'ukt')) {
               return <div className="text-center py-10 font-bold text-gray-400">Anda tidak diizinkan mengakses modul UKT.</div>;
             }
-            return <UKTView user={activeUser} events={uktEvents} addUktEvent={addUktEvent} updateUktEvent={updateUktEvent} deleteUktEvent={deleteUktEvent} registrations={uktRegistrations} addUktReg={addUktReg} updateUktReg={updateUktReg} users={users} updateUser={updateUser} points={athletePoints} addPoint={addPoint} historicalRaports={historicalRaports} addRaport={addRaport} updateRaport={updateRaport} deleteRaport={deleteRaport} triggerToast={triggerToast} />;
+            return <UKTView user={activeUser} events={uktEvents} addUktEvent={addUktEvent} updateUktEvent={updateUktEvent} deleteUktEvent={deleteUktEvent} registrations={uktRegistrations} addUktReg={addUktReg} updateUktReg={updateUktReg} users={users} updateUser={updateUser} points={athletePoints} addPoint={addPoint} historicalRaports={historicalRaports} addRaport={addRaport} updateRaport={updateRaport} deleteRaport={deleteRaport} triggerToast={triggerToast} poinRules={poinRules} />;
           
           case 'kejuaraan': 
             if (!isFeatureAllowed(activeUser.role, 'kejuaraan')) {
               return <div className="text-center py-10 font-bold text-gray-400">Anda tidak diizinkan mengakses modul Event.</div>;
             }
-            return <ChampionshipView user={activeUser} events={championships} addChamp={addChamp} updateChamp={updateChamp} deleteChamp={deleteChamp} registrations={champRegistrations} addChampReg={addChampReg} updateChampReg={updateChampReg} triggerToast={triggerToast} users={users} points={athletePoints} addPoint={addPoint} />;
+            return <ChampionshipView user={activeUser} events={championships} addChamp={addChamp} updateChamp={updateChamp} deleteChamp={deleteChamp} registrations={champRegistrations} addChampReg={addChampReg} updateChampReg={updateChampReg} triggerToast={triggerToast} users={users} points={athletePoints} addPoint={addPoint} poinRules={poinRules} />;
           
           case 'tes_fisik':
             if (!isFeatureAllowed(activeUser.role, 'tes_fisik')) {
@@ -3010,7 +3062,7 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
             if (!isFeatureAllowed(activeUser.role, 'poin')) {
               return <div className="text-center py-10 font-bold text-gray-400">Anda tidak diizinkan mengakses modul Poin.</div>;
             }
-            return <PointsView user={activeUser} points={athletePoints} addPoint={addPoint} updatePoint={updatePoint} deletePoint={deletePoint} users={users} clubs={clubs} triggerToast={triggerToast} />;
+            return <PointsView user={activeUser} points={athletePoints} addPoint={addPoint} updatePoint={updatePoint} deletePoint={deletePoint} users={users} clubs={clubs} triggerToast={triggerToast} poinRules={poinRules} updatePointSetting={updatePointSetting} />;
           
           case 'akun': return <AccountManager user={activeUser} users={users} addUser={addUser} updateUser={updateUser} deleteUser={deleteUser} clubs={clubs} addClub={addClub} deleteClub={deleteClub} triggerToast={triggerToast} featureSettings={featureSettings} updateFeatureSettings={updateFeatureSettingsOnDb} />;
           default: return <Dashboard user={activeUser} articles={articles} addArticle={addArticle} updateArticle={updateArticle} deleteArticle={deleteArticle} users={users} uktRegistrations={uktRegistrations} athletePoints={athletePoints} triggerToast={triggerToast} sppBills={sppBills} sppPayments={sppPayments} updateSppPayment={updateSppPayment} setCurrentTab={setCurrentTab} uktEvents={uktEvents} championships={championships} featureSettings={featureSettings} sanctions={sanctions} attendances={attendances} dismissedNotifs={dismissedNotifs} setDismissedNotifs={setDismissedNotifs} />;
@@ -4243,15 +4295,76 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
       );
     }
 
-    function UKTView({ user, events, addUktEvent, updateUktEvent, deleteUktEvent, registrations, addUktReg, updateUktReg, users, updateUser, points, addPoint, historicalRaports, addRaport, updateRaport, deleteRaport, triggerToast }) {
-      const [activeTab, setActiveTab] = useState('daftar'); 
+    function UKTView({ user, events, addUktEvent, updateUktEvent, deleteUktEvent, registrations, addUktReg, updateUktReg, users, updateUser, points, addPoint, historicalRaports, addRaport, updateRaport, deleteRaport, triggerToast, poinRules }) {
+      const [activeTab, setActiveTab] = useState('daftar');
+      const uktPoinMengikuti = poinRules && poinRules.ukt_mengikuti !== undefined ? poinRules.ukt_mengikuti : 3;
+      const uktPoinLulus = poinRules && poinRules.ukt_lulus !== undefined ? poinRules.ukt_lulus : 5; 
       const [showCreateUKT, setShowCreateUKT] = useState(false);
       const [searchQuery, setSearchQuery] = useState('');
-      const [peringkatPeriod, setPeringkatPeriod] = useState('Periode I');
+      const [raportSelAthleteId, setRaportSelAthleteId] = useState(null);
+      const [editingRaportId, setEditingRaportId] = useState(null);
+      const [editRaportData, setEditRaportData] = useState(null);
       const [uktEventFilter, setUktEventFilter] = useState('semua');
+      const [expandedSection, setExpandedSection] = useState(null);
+      // key format: "<eventId>|<kelola|peringkat|raport>" - hanya satu section terbuka
+      const toggleSection = (evId, type) => {
+        const key = String(evId) + '|' + type;
+        setExpandedSection(prev => (prev === key ? null : key));
+      };
+
+      // =====================================================================
+      // HELPER PER-EVENT: raport milik peserta pelaksanaan (event) tertentu.
+      // Raport dicocokkan lewat periode event + registrasi atlet (sabuk tujuan sama).
+      // =====================================================================
+      const getEventRaports = (ev) => {
+        const evRegs = registrations.filter(reg => reg.uktEventId === ev.id);
+        return historicalRaports
+          .map(r => {
+            const athlete = users.find(u => u.id === r.athleteId);
+            if (!athlete) return null;
+            if (r.period !== ev.period) return null;
+            const matched = evRegs.find(reg => reg.athleteId === r.athleteId && reg.targetBelt === r.targetBelt);
+            if (!matched) return null;
+            if (user.role !== 'super_admin' && athlete.club !== user.club) return null;
+            return { ...r, athlete };
+          })
+          .filter(Boolean);
+      };
+
+      const raportComponents = [
+        { key: 'pukulan', label: 'Pukulan (Jireugi)' },
+        { key: 'tangkisan', label: 'Tangkisan (Makki)' },
+        { key: 'tendangan', label: 'Tendangan (Chagi)' },
+        { key: 'kudaKuda', label: 'Sikap Kuda-Kuda (Seogi)' },
+        { key: 'taegeuk', label: 'Jurus (Taegeuk / Poomsae)' },
+        { key: 'kyorugi', label: 'Pertarungan (Kyorugi)' },
+        { key: 'fisik', label: 'Kekuatan Fisik & Stamina' },
+        { key: 'pengetahuan', label: 'Pengetahuan Umum Taekwondo' },
+        { key: 'kyukpa', label: 'Pemecahan Papan (Kyukpa)' },
+        { key: 'mental', label: 'Kerapian & Mental Spiritual (Attitude)' }
+      ];
+
+      // Edit & hapus raport dari section Pelaksanaan (khusus Super Admin)
+      const handleSaveEditRaportUkt = (raport) => {
+        if (!editRaportData || !raport) return;
+        const totalScore = raportComponents.reduce((sum, comp) => sum + (Number(editRaportData[comp.key]) || 0), 0);
+        const passStatus = totalScore >= 51 ? 'Lulus' : 'Tidak Lulus';
+        updateRaport(raport.id, { ...raport, raport: { ...editRaportData, totalScore }, passStatus });
+        triggerToast("Raport berhasil diperbarui!");
+        setEditingRaportId(null);
+        setEditRaportData(null);
+      };
+
+      const handleDeleteRaportUkt = (raportId) => {
+        if (!window.confirm("Hapus raport ini secara permanen? Tindakan ini tidak dapat dibatalkan!")) return;
+        deleteRaport(raportId);
+        triggerToast("Raport berhasil dihapus!");
+        setEditingRaportId(null);
+        setEditRaportData(null);
+      };
 
       // Fungsi Download PDF Peringkat UKT
-      const handleDownloadPeringkatPDF = () => {
+      const handleDownloadPeringkatPDF = (ev) => {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
         const pageW = doc.internal.pageSize.getWidth();
@@ -4267,19 +4380,10 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
         doc.text(`Taekwondo Indonesia Kab. Musi Rawas`, pageW / 2, 18, { align: 'center' });
         doc.setFontSize(9);
         doc.setFont("helvetica", "normal");
-        doc.text(`${peringkatPeriod}`, pageW / 2, 24, { align: 'center' });
+        doc.text(`${ev.period} - ${ev.executionDate || '-'}`, pageW / 2, 24, { align: 'center' });
 
         // Ambil data peringkat
-        const eligibleRaports = historicalRaports.filter(r => r.period === peringkatPeriod);
-        const enrichedRaports = eligibleRaports.map(r => {
-          const athlete = users.find(u => u.id === r.athleteId);
-          return { ...r, athlete };
-        }).filter(r => {
-          if (!r.athlete) return false;
-          if (user.role === 'super_admin') return true;
-          if (user.role === 'pengurus_club' || user.role === 'pelatih') return r.athlete.club === user.club;
-          return false;
-        });
+        const enrichedRaports = getEventRaports(ev);
 
         const grouped = {};
         enrichedRaports.forEach(r => {
@@ -4292,7 +4396,7 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
           doc.setTextColor(100, 100, 100);
           doc.setFontSize(12);
           doc.text('Belum ada data nilai UKT pada periode ini.', pageW / 2, 60, { align: 'center' });
-          doc.save(`Peringkat_UKT_${peringkatPeriod.replace(/\s+/g, '_')}.pdf`);
+          doc.save(`Peringkat_UKT_${ev.period.replace(/\s+/g, '_')}_${(ev.executionDate || 'no_date').replace(/\s+/g, '_')}.pdf`);
           triggerToast("PDF Peringkat UKT berhasil diunduh!");
           return;
         }
@@ -4354,7 +4458,7 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
         doc.setTextColor(150, 150, 150);
         doc.text(`Dicetak oleh Sistem Informasi TI Musi Rawas | ${new Date().toLocaleDateString('id-ID')}`, pageW / 2, 290, { align: 'center' });
 
-        doc.save(`Peringkat_UKT_${peringkatPeriod.replace(/\s+/g, '_')}.pdf`);
+        doc.save(`Peringkat_UKT_${ev.period.replace(/\s+/g, '_')}_${(ev.executionDate || 'no_date').replace(/\s+/g, '_')}.pdf`);
         triggerToast("PDF Peringkat UKT berhasil diunduh!");
       };
       
@@ -4484,7 +4588,7 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
         // Auto 3 poin untuk mengikuti UKT saat pendaftaran dikonfirmasi
         const existingUktPoint = points.find(p => p.athleteId === r.athleteId && p.eventName === `UKT (${r.targetBelt})` && p.category === 'UKT/Diklat');
         if (!existingUktPoint) {
-          addPoint({ id: Date.now(), athleteId: r.athleteId, eventName: `UKT (${r.targetBelt})`, level: 'Kabupaten', category: 'UKT/Diklat', division: 'N/A', achievement: 'Mengikuti UKT', points: 3 });
+          addPoint({ id: Date.now(), athleteId: r.athleteId, eventName: `UKT (${r.targetBelt})`, level: 'Kabupaten', category: 'UKT/Diklat', division: 'N/A', achievement: 'Mengikuti UKT', points: uktPoinMengikuti });
         }
         triggerToast("Pendaftar dikonfirmasi (Layak)! +3 Poin UKT otomatis!"); 
       };
@@ -4525,11 +4629,11 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
         if (existingUktPoint) {
           // Sudah ada poin dari konfirmasi, update achievement jika lulus
           if (finalStatus === 'Lulus') {
-            updatePoint(existingUktPoint.id, { ...existingUktPoint, achievement: 'Lulus UKT', points: 5 });
+            updatePoint(existingUktPoint.id, { ...existingUktPoint, achievement: 'Lulus UKT', points: uktPoinLulus });
           }
         } else {
           // Belum ada poin, tambahkan baru
-          const earnedUktPoints = finalStatus === 'Lulus' ? 5 : 3;
+          const earnedUktPoints = finalStatus === 'Lulus' ? uktPoinLulus : uktPoinMengikuti;
           addPoint({ id: Date.now() + 1, athleteId: matchingReg.athleteId, eventName: `UKT (${matchingReg.targetBelt})`, level: 'Kabupaten', category: 'UKT/Diklat', division: 'N/A', achievement: finalStatus === 'Lulus' ? 'Lulus UKT' : 'Mengikuti UKT', points: earnedUktPoints });
         }
         
@@ -5231,205 +5335,26 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
 
       const activeUktBelts = beltSequence.filter(b => uktBeltCounts[b] > 0);
 
-      return (
-        <div className="space-y-4">
-          <div className="flex bg-gray-100 p-1 rounded-xl no-print">
-            <button onClick={() => setActiveTab('daftar')} className={`flex-1 py-2 text-[10px] md:text-xs rounded-lg font-bold transition-all duration-200 ${activeTab === 'daftar' ? 'bg-white text-red-700 shadow-sm' : 'text-gray-500'}`}>Pendaftaran</button>
-            {(user.role === 'super_admin' || user.role === 'pengurus_club') && (
-              <button onClick={() => setActiveTab('kelola')} className={`flex-1 py-2 text-[10px] md:text-xs rounded-lg font-bold transition-all duration-200 ${activeTab === 'kelola' ? 'bg-white text-red-700 shadow-sm' : 'text-gray-500'}`}>Kelola & Nilai</button>
-            )}
-            {(user.role === 'super_admin' || user.role === 'pengurus_club' || user.role === 'pelatih') && (
-              <button onClick={() => setActiveTab('peringkat')} className={`flex-1 py-2 text-[10px] md:text-xs rounded-lg font-bold transition-all duration-200 ${activeTab === 'peringkat' ? 'bg-white text-red-700 shadow-sm' : 'text-gray-500'}`}>Peringkat</button>
-            )}
-            <button onClick={() => setActiveTab('raport')} className={`flex-1 py-2 text-[10px] md:text-xs rounded-lg font-bold transition-all duration-200 ${activeTab === 'raport' ? 'bg-white text-red-700 shadow-sm' : 'text-gray-500'}`}>Raport UKT</button>
-          </div>
-          
-          {activeTab === 'daftar' && (
-            <div className="space-y-4">
-              {user.role === 'super_admin' && (
-                <button onClick={() => setShowCreateUKT(!showCreateUKT)} className="w-full bg-red-700 hover:bg-red-800 text-white py-2.5 rounded-2xl font-bold text-xs flex justify-center items-center gap-1.5 shadow no-print">
-                  <Icon name="Plus" className="w-4 h-4 text-white" /> Buat Event UKT Baru
-                </button>
-              )}
-              
-              {showCreateUKT && (
-                <form onSubmit={handleCreateUKTSubmit} className="bg-red-50 p-4 rounded-3xl border border-red-100 space-y-3 no-print">
-                  <input type="text" placeholder="Judul Kegiatan UKT" value={newTitle} onChange={e => setNewTitle(e.target.value)} className="w-full text-xs p-2.5 bg-white border rounded-xl" required />
-                  <div className="grid grid-cols-2 gap-2">
-                    <select value={newPeriod} onChange={e => setNewPeriod(e.target.value)} className="w-full text-xs p-2.5 bg-white border rounded-xl">
-                      <option value="Periode I">Periode I</option><option value="Periode II">Periode II</option><option value="Periode III">Periode III</option><option value="Periode IV">Periode IV</option>
-                    </select>
-                    <input type="date" value={newCloseDate} onChange={e => setNewCloseDate(e.target.value)} className="w-full text-xs p-2.5 bg-white border rounded-xl" required />
-                  </div>
-                  <input type="date" value={newExecDate} onChange={e => setNewExecDate(e.target.value)} className="w-full text-xs p-2.5 bg-white border rounded-xl" required />
-                
-                  <div className="space-y-2 border-t border-red-200 pt-2.5">
-                    <label className="block text-[10px] font-bold text-red-900 uppercase tracking-wider pl-1">Atur Biaya UKT Per Sabuk (Rp)</label>
-                    <div className="max-h-48 overflow-y-auto space-y-1.5 border border-red-100 p-2 rounded-xl bg-white hide-scrollbar">
-                      {beltSequence.map((belt) => (
-                        <div key={belt} className="flex justify-between items-center text-xs gap-2 border-b border-gray-50 pb-1 last:border-0 last:pb-0">
-                          <span className="truncate text-[10px] font-semibold text-gray-700">{belt}</span>
-                          <div className="flex items-center gap-1">
-                            <span className="text-[10px] text-gray-400">Rp</span>
-                            <input type="number" value={feesSetup[belt] || 0} onChange={e => setFeesSetup({ ...feesSetup, [belt]: Number(e.target.value) })} className="w-20 p-1 border rounded text-right text-xs font-bold focus:ring-1 focus:ring-red-500 focus:outline-none" min="0" required />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+      // =====================================================================
+      // PINDAHAN: FITUR "KELOLA & NILAI" KINI DIRENDER PER-EVENT DI TAB
+      // PENDAFTARAN (BAGIAN PELAKSANAAN) PADA TIAP KARTU EVENT UKT
+      // =====================================================================
+      const renderKelolaNilaiSection = (ev) => {
+        const evRegs = visibleRegistrations.filter(r => r.uktEventId === ev.id);
+        const evBeltCounts = {};
+        beltSequence.forEach(b => evBeltCounts[b] = 0);
+        evRegs.forEach(reg => {
+          if (evBeltCounts[reg.targetBelt] !== undefined) evBeltCounts[reg.targetBelt]++;
+        });
+        const evActiveBelts = beltSequence.filter(b => evBeltCounts[b] > 0);
+        const confirmedCount = evRegs.filter(r => r.status === 'confirmed').length;
+        const paidCount = evRegs.filter(r => r.paymentStatus === 'paid').length;
 
-                  <button type="submit" className="w-full bg-red-700 text-white py-2.5 rounded-xl font-bold text-xs shadow-md">Simpan Event UKT (DB)</button>
-                </form>
-              )}
-
-              <div className="space-y-3">
-                {events.map(ev => { 
-                  const myRegistration = registrations.find(r => r.uktEventId === ev.id && r.athleteId === user.id); 
-                  const isSuperAdmin = user.role === 'super_admin';
-
-                  if (editingEventId === ev.id) {
-                    return (
-                      <form key={ev.id} onSubmit={handleSaveEditEvent} className="bg-amber-50/75 p-4 rounded-3xl border border-amber-200 space-y-3 animate-fade-in no-print">
-                        <div className="flex justify-between items-center pb-1.5 border-b border-amber-200">
-                          <span className="font-bold text-xs text-amber-900 uppercase">Ubah Event UKT</span>
-                          <button type="button" onClick={() => setEditingEventId(null)} className="text-gray-400 hover:text-gray-500"><Icon name="XCircle" className="w-5 h-5 text-gray-400" /></button>
-                        </div>
-                        <div>
-                          <label className="block text-[10px] font-bold text-gray-600 uppercase mb-1">Judul Kegiatan UKT</label>
-                          <input type="text" value={editTitle} onChange={e => setEditTitle(e.target.value)} className="w-full text-xs p-2.5 bg-white border border-gray-200 rounded-xl" required />
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <div>
-                            <label className="block text-[10px] font-bold text-gray-600 uppercase mb-1">Periode</label>
-                            <select value={editPeriod} onChange={e => setEditPeriod(e.target.value)} className="w-full text-xs p-2.5 bg-white border border-gray-200 rounded-xl">
-                              <option value="Periode I">Periode I</option><option value="Periode II">Periode II</option><option value="Periode III">Periode III</option><option value="Periode IV">Periode IV</option>
-                            </select>
-                          </div>
-                          <div>
-                            <label className="block text-[10px] font-bold text-gray-600 uppercase mb-1">Batas Daftar</label>
-                            <input type="date" value={editCloseDate} onChange={e => setEditCloseDate(e.target.value)} className="w-full text-xs p-2.5 bg-white border border-gray-200 rounded-xl" required />
-                          </div>
-                        </div>
-                        <div>
-                          <label className="block text-[10px] font-bold text-gray-600 uppercase mb-1">Tanggal Pelaksanaan</label>
-                          <input type="date" value={editExecDate} onChange={e => setEditExecDate(e.target.value)} className="w-full text-xs p-2.5 bg-white border border-gray-200 rounded-xl" required />
-                        </div>
-
-                        <div className="space-y-2 border-t border-amber-200 pt-2.5">
-                          <label className="block text-[10px] font-bold text-amber-950 uppercase tracking-wider pl-1">Biaya UKT Per Sabuk (Rp)</label>
-                          <div className="max-h-40 overflow-y-auto space-y-1.5 border border-amber-100 p-2 rounded-xl bg-white hide-scrollbar">
-                            {beltSequence.map((belt) => (
-                              <div key={belt} className="flex justify-between items-center text-xs gap-2 border-b border-gray-50 pb-1 last:border-0 last:pb-0">
-                                <span className="truncate text-[10px] font-semibold text-gray-700">{belt}</span>
-                                <div className="flex items-center gap-1">
-                                  <span className="text-[10px] text-gray-400">Rp</span>
-                                  <input type="number" value={editFees[belt] || 0} onChange={e => setEditFees({ ...editFees, [belt]: Number(e.target.value) })} className="w-20 p-1 border rounded text-right text-[10px] font-bold focus:ring-1 focus:ring-red-500 focus:outline-none" min="0" required />
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-
-                        <div className="flex gap-2 pt-2">
-                          <button type="submit" className="flex-1 bg-amber-600 hover:bg-amber-700 text-white py-2 rounded-xl font-bold text-xs shadow">Simpan</button>
-                          <button type="button" onClick={() => setEditingEventId(null)} className="flex-1 bg-gray-400 hover:bg-gray-500 text-white py-2 rounded-xl font-bold text-xs shadow">Batal</button>
-                        </div>
-                      </form>
-                    );
-                  }
-
-                  return (
-                    <div key={ev.id} className="bg-white p-4 rounded-3xl border shadow-sm space-y-3 relative">
-                      {isSuperAdmin && (
-                        <div className="absolute top-3 right-3 flex gap-1.5 z-10 no-print">
-                          <button onClick={() => handleStartEditEvent(ev)} className="p-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-xl transition shadow-sm border border-blue-100" title="Edit Event UKT">
-                            <Icon name="Edit" className="w-3.5 h-3.5 text-blue-600" />
-                          </button>
-                          <button onClick={() => handleDeleteEvent(ev.id)} className="p-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl transition shadow-sm border border-red-100" title="Hapus Event UKT">
-                            <Icon name="Trash2" className="w-3.5 h-3.5 text-red-600" />
-                          </button>
-                        </div>
-                      )}
-                      <h4 className="font-extrabold text-sm text-gray-800 leading-snug pr-16">{ev.title}</h4>
-                      <div className="text-[10px] text-gray-400 font-bold uppercase flex gap-1.5 items-center">
-                        <Icon name="Calendar" className="w-3.5 h-3.5 text-red-600" />
-                        <span>Pelaksanaan: {ev.executionDate || '-'} ({ev.period})</span>
-                      </div>
-                      <div className="flex justify-between items-center bg-gray-50 p-2.5 rounded-2xl">
-                        <span className="text-[10px] text-gray-500 font-bold uppercase">Batas Daftar:</span>
-                        <CountdownTimer closeDateString={ev.closeDate} />
-                      </div>
-                      
-                      {user.role === 'atlet' && !myRegistration && (() => {
-                        const isRegistrationClosed = new Date() >= new Date(ev.closeDate);
-                        return isRegistrationClosed ? (
-                          <div className="space-y-3 pt-3 border-t">
-                            <div className="bg-red-50 p-3 rounded-xl border border-red-200 text-center">
-                              <Icon name="Lock" className="w-5 h-5 text-red-400 mx-auto mb-1" />
-                              <span className="text-xs font-black text-red-600 uppercase">Pendaftaran Ditutup</span>
-                              <p className="text-[10px] text-red-400 font-bold mt-1">Batas pendaftaran telah berakhir.</p>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="space-y-3 pt-3 border-t">
-                            <div className="bg-blue-50 p-3 rounded-xl border border-blue-100 space-y-2 flex justify-between items-center text-xs">
-                              <span className="font-bold text-gray-600">Sabuk Sekarang:</span>
-                              <span className={getBeltBadgeClass(user.sabuk)}>{user.sabuk || 'Sabuk Putih Polos (Geup 10)'}</span>
-                            </div>
-                            <div className="bg-green-50 p-3 rounded-xl border border-green-100 space-y-2 flex justify-between items-center text-xs">
-                              <span className="font-bold text-green-700">Naik ke Target:</span>
-                              <span className={getBeltBadgeClass(defaultTargetBelt)}>{defaultTargetBelt}</span>
-                            </div>
-                            <div className="bg-red-50 p-3 rounded-xl text-center flex justify-between items-center px-4">
-                              <span className="text-[10px] text-red-700 font-bold uppercase">Biaya:</span>
-                              <span className="text-sm font-black text-red-800">Rp {(ev.fees?.[defaultTargetBelt] || 0).toLocaleString('id-ID')}</span>
-                            </div>
-                            <button onClick={() => handleRegister(ev, defaultTargetBelt)} className="w-full bg-red-600 hover:bg-red-700 text-white py-3 rounded-xl font-bold text-xs shadow-md flex items-center justify-center gap-2">
-                              <Icon name="ClipboardCheck" className="w-4 h-4 text-white" /> Daftar UKT Sekarang
-                            </button>
-                          </div>
-                        );
-                      })()}
-
-                      {myRegistration && (
-                        <div className="p-3.5 bg-gray-50 rounded-2xl border border-gray-100 space-y-2 text-xs">
-                          <div className="flex justify-between items-center pb-1 border-b">
-                            <span>Sabuk Target:</span>
-                            <span className={getBeltBadgeClass(myRegistration.targetBelt)}>{myRegistration.targetBelt}</span>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <span>Status:</span>
-                            {myRegistration.status === 'rejected' ? (
-                              <span className="font-black text-red-700">DITOLAK</span>
-                            ) : (
-                              <span className="font-black text-blue-700">{myRegistration.status === 'confirmed' ? 'DIKONFIRMASI' : 'MENUNGGU'}</span>
-                            )}
-                          </div>
-                          {myRegistration.status === 'rejected' && (
-                            <div className="text-center mt-2 p-2 bg-red-50 text-red-700 rounded-xl font-bold text-[10px] border border-red-200">
-                              Pendaftaran Anda Ditolak oleh Admin. Hubungi pengurus untuk informasi lebih lanjut.
-                            </div>
-                          )}
-                          {myRegistration.status === 'confirmed' && myRegistration.paymentStatus === 'pending' && (
-                            <div className="text-center mt-2 p-2 bg-amber-50 text-amber-700 rounded-xl font-bold text-[10px] border border-amber-200">
-                              Menunggu Konfirmasi Pembayaran Admin
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-          
-          {/* TAB KELOLA & NILAI */}
-          {activeTab === 'kelola' && (
-            <div className="space-y-4">
+        return (
+          <div className="space-y-4 animate-fade-in pt-1">
               <div className="flex flex-col gap-3 bg-white p-4 rounded-3xl shadow-sm border border-gray-100">
                 <div className="flex justify-between items-center w-full">
-                  <span className="text-[11px] font-bold text-gray-700 pl-1 whitespace-nowrap">Total Pendaftar: {filterAwareRegs.length}</span>
+                  <span className="text-[11px] font-bold text-gray-700 pl-1 whitespace-nowrap">Total Pendaftar: {evRegs.length}</span>
                   <div className="flex flex-wrap gap-1.5 justify-end">
                     <button onClick={handleDownloadUKTData} className="bg-blue-600 hover:bg-blue-700 transition text-white px-2.5 py-2 rounded-xl text-[9px] font-bold shadow-sm flex items-center gap-1">
                       <Icon name="Download" className="w-3.5 h-3.5 text-white" /> CSV
@@ -5441,82 +5366,59 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
                   </div>
                 </div>
                 
-                {/* FILTER PERIODE UKT + TOMBOL UNDUH PDF */}
+                {/* PELAKSANAAN: RINGKASAN PESERTA & UNDUH PDF */}
                 <div className="bg-gradient-to-br from-red-50 via-white to-amber-50 border border-red-200/80 rounded-3xl p-4 space-y-3.5 shadow-sm">
                   {/* Header */}
                   <div className="flex items-center gap-2 pb-2 border-b border-red-100">
                     <div className="w-7 h-7 bg-red-100 rounded-lg flex items-center justify-center shrink-0">
-                      <Icon name="Filter" className="w-4 h-4 text-red-600" />
+                      <Icon name="Calendar" className="w-4 h-4 text-red-600" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <span className="text-[11px] font-black text-red-800 uppercase tracking-wide block leading-tight">Filter & Unduh PDF</span>
-                      <span className="text-[9px] font-semibold text-red-500/80 block mt-0.5">Peserta UKT Berdasarkan Periode Tanggal Pelaksanaan</span>
+                      <span className="text-[11px] font-black text-red-800 uppercase tracking-wide block leading-tight">Pelaksanaan: {ev.executionDate || '-'} ({ev.period})</span>
+                      <span className="text-[9px] font-semibold text-red-500/80 block mt-0.5">{ev.title}</span>
                     </div>
                   </div>
 
-                  {/* Baris 1: Label + Dropdown */}
-                  <div className="space-y-1.5">
-                    <label className="text-[9px] font-bold text-gray-500 uppercase tracking-wider pl-1">Pilih Periode UKT</label>
-                    <select
-                      value={uktEventFilter}
-                      onChange={e => setUktEventFilter(e.target.value)}
-                      className="w-full text-xs p-3 bg-white border border-red-200/80 rounded-xl font-semibold text-gray-700 focus:ring-2 focus:ring-red-400 focus:border-red-400 transition shadow-sm cursor-pointer"
-                    >
-                      <option value="semua">📋  Semua Event UKT</option>
-                      {events.map(ev => (
-                        <option key={ev.id} value={String(ev.id)}>📅  {ev.period} — Tgl Pelaksanaan: {ev.executionDate || '-'} — {ev.title}</option>
-                      ))}
-                    </select>
+                  {/* Ringkasan peserta pelaksanaan ini */}
+                  <div className="bg-white rounded-xl border border-red-100/80 p-3 space-y-2 shadow-sm">
+                    <div className="flex items-center gap-2">
+                      <Icon name="Users" className="w-4 h-4 text-red-500" />
+                      <span className="text-[10px] font-bold text-red-800 uppercase tracking-wider">Ringkasan Peserta</span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="bg-red-50 rounded-lg p-2 text-center border border-red-100">
+                        <div className="text-base font-black text-red-700 leading-none">{evRegs.length}</div>
+                        <div className="text-[8px] font-bold text-red-400 uppercase mt-1">Terdaftar</div>
+                      </div>
+                      <div className="bg-green-50 rounded-lg p-2 text-center border border-green-100">
+                        <div className="text-base font-black text-green-600 leading-none">{confirmedCount}</div>
+                        <div className="text-[8px] font-bold text-green-400 uppercase mt-1">Dikonfirmasi</div>
+                      </div>
+                      <div className="bg-blue-50 rounded-lg p-2 text-center border border-blue-100">
+                        <div className="text-base font-black text-blue-600 leading-none">{paidCount}</div>
+                        <div className="text-[8px] font-bold text-blue-400 uppercase mt-1">Lunas</div>
+                      </div>
+                    </div>
+                    <div className="text-[9px] text-gray-500 text-center pt-1">
+                      Periode: <b className="text-red-700">{ev.period}</b> &middot; Tanggal Pelaksanaan: <b className="text-red-700">{ev.executionDate || '-'}</b>
+                    </div>
                   </div>
 
-                  {/* Baris 2: Info peserta (jika periode dipilih) */}
-                  {uktEventFilter !== 'semua' && (() => {
-                    const selEv = events.find(ev => ev.id === Number(uktEventFilter));
-                    const filteredCount = selEv ? visibleRegistrations.filter(r => r.uktEventId === selEv.id).length : 0;
-                    const confirmedCount = selEv ? visibleRegistrations.filter(r => r.uktEventId === selEv.id && r.status === 'confirmed').length : 0;
-                    const paidCount = selEv ? visibleRegistrations.filter(r => r.uktEventId === selEv.id && r.paymentStatus === 'paid').length : 0;
-                    return (
-                      <div className="bg-white rounded-xl border border-red-100/80 p-3 space-y-2 shadow-sm">
-                        <div className="flex items-center gap-2">
-                          <Icon name="Users" className="w-4 h-4 text-red-500" />
-                          <span className="text-[10px] font-bold text-red-800 uppercase tracking-wider">Ringkasan Peserta</span>
-                        </div>
-                        <div className="grid grid-cols-3 gap-2">
-                          <div className="bg-red-50 rounded-lg p-2 text-center border border-red-100">
-                            <div className="text-base font-black text-red-700 leading-none">{filteredCount}</div>
-                            <div className="text-[8px] font-bold text-red-400 uppercase mt-1">Terdaftar</div>
-                          </div>
-                          <div className="bg-green-50 rounded-lg p-2 text-center border border-green-100">
-                            <div className="text-base font-black text-green-600 leading-none">{confirmedCount}</div>
-                            <div className="text-[8px] font-bold text-green-400 uppercase mt-1">Dikonfirmasi</div>
-                          </div>
-                          <div className="bg-blue-50 rounded-lg p-2 text-center border border-blue-100">
-                            <div className="text-base font-black text-blue-600 leading-none">{paidCount}</div>
-                            <div className="text-[8px] font-bold text-blue-400 uppercase mt-1">Lunas</div>
-                          </div>
-                        </div>
-                        <div className="text-[9px] text-gray-500 text-center pt-1">
-                          Periode: <b className="text-red-700">{selEv?.period}</b> &middot; Tanggal Pelaksanaan: <b className="text-red-700">{selEv?.executionDate || '-'}</b>
-                        </div>
-                      </div>
-                    );
-                  })()}
-
-                  {/* Baris 3: Tombol Unduh */}
+                  {/* Tombol Unduh PDF */}
                   <div className="grid grid-cols-1 gap-2">
                     <button
-                      onClick={() => handleDownloadUKTPDF(uktEventFilter)}
+                      onClick={() => handleDownloadUKTPDF(String(ev.id))}
                       className="w-full bg-gradient-to-r from-red-700 to-red-800 hover:from-red-800 hover:to-red-900 active:scale-[0.98] text-white py-3 rounded-xl text-xs font-bold shadow-md flex items-center justify-center gap-2 transition-all duration-200"
                     >
                       <Icon name="FileText" className="w-4 h-4 text-white" />
-                      {uktEventFilter === 'semua' ? 'Unduh PDF Semua Peserta UKT' : 'Unduh PDF Peserta Periode Ini'}
+                      Unduh PDF Peserta Pelaksanaan Ini
                     </button>
                     <button
-                      onClick={() => handleDownloadFormulirPenilaianPDF(uktEventFilter)}
+                      onClick={() => handleDownloadFormulirPenilaianPDF(String(ev.id))}
                       className="w-full bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 active:scale-[0.98] text-white py-3 rounded-xl text-xs font-bold shadow-md flex items-center justify-center gap-2 transition-all duration-200"
                     >
                       <Icon name="ClipboardList" className="w-4 h-4 text-white" />
-                      {uktEventFilter === 'semua' ? 'PDF Formulir Penilaian Manual UKT' : 'PDF Formulir Penilaian — Periode Ini'}
+                      PDF Formulir Penilaian Manual — Pelaksanaan Ini
                     </button>
                   </div>
                 </div>
@@ -5542,16 +5444,13 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
                       <h3 className="font-extrabold text-xs text-gray-800 uppercase flex items-center gap-1.5">
                           <Icon name="PieChart" className="w-4 h-4 text-red-600" /> Statistik Target Sabuk UKT
                       </h3>
-                      {uktEventFilter !== 'semua' && (() => {
-                        const selEv = events.find(ev => ev.id === Number(uktEventFilter));
-                        return <span className="text-[9px] font-bold text-red-500 bg-red-50 px-2 py-0.5 rounded-lg border border-red-100">{selEv?.period} — {selEv?.executionDate || '-'}</span>;
-                      })()}
+                      <span className="text-[9px] font-bold text-red-500 bg-red-50 px-2 py-0.5 rounded-lg border border-red-100">{ev.period} — {ev.executionDate || '-'}</span>
                   </div>
-                  {activeUktBelts.length > 0 ? (
+                  {evActiveBelts.length > 0 ? (
                     <>
                       <div className="grid grid-cols-2 gap-2">
-                          {activeUktBelts.map(belt => {
-                              const count = uktBeltCounts[belt];
+                          {evActiveBelts.map(belt => {
+                              const count = evBeltCounts[belt];
                               return (
                                   <div key={belt} className="p-2.5 rounded-xl border border-red-200 bg-red-50/20 shadow-sm flex justify-between items-center transition-all">
                                       <div className="flex items-center gap-1.5 truncate pr-2">
@@ -5565,16 +5464,16 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
                       </div>
                       <div className="mt-3 pt-2 border-t border-gray-100 flex justify-between items-center text-[10px]">
                         <span className="font-bold text-gray-500 uppercase">Total Peserta</span>
-                        <span className="font-black text-red-700 text-sm">{filterAwareRegs.length} orang</span>
+                        <span className="font-black text-red-700 text-sm">{evRegs.length} orang</span>
                       </div>
                     </>
                   ) : (
-                    <p className="text-xs text-center text-gray-400 italic py-4">Belum ada pendaftar UKT aktif{uktEventFilter !== 'semua' ? ' pada periode ini' : ''}.</p>
+                    <p className="text-xs text-center text-gray-400 italic py-4">Belum ada pendaftar UKT pada pelaksanaan ini.</p>
                   )}
               </div>
 
               <div className="space-y-3">
-                {filterAwareRegs.map(reg => {
+                {evRegs.map(reg => {
                   const athlete = users.find(u => u.id === reg.athleteId);
                   const event = events.find(e => e.id === reg.uktEventId);
                   if (!athlete || !event) return null;
@@ -5743,100 +5642,515 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
                     </div>
                   );
                 })}
-                {visibleRegistrations.length === 0 && (
-                  <p className="text-center text-gray-400 text-xs py-4 italic">Belum ada pendaftar UKT.</p>
+                {evRegs.length === 0 && (
+                  <p className="text-center text-gray-400 text-xs py-4 italic">Belum ada pendaftar UKT pada pelaksanaan ini.</p>
                 )}
               </div>
-            </div>
-          )}
+          </div>
+        );
+      };
 
-          {/* TAB PERINGKAT NILAI (KHUSUS ADMIN) */}
-          {activeTab === 'peringkat' && (
-            <div className="space-y-4 animate-fade-in">
-              <div className="bg-white p-4 rounded-3xl border shadow-sm flex flex-col gap-3">
-                 <div className="flex justify-between items-center border-b pb-2">
-                   <h3 className="font-extrabold text-sm text-gray-800 flex items-center gap-1.5"><Icon name="Trophy" className="w-5 h-5 text-yellow-500" /> Peringkat Nilai UKT Tertinggi</h3>
-                   <button onClick={handleDownloadPeringkatPDF} className="bg-red-700 hover:bg-red-800 text-white px-3 py-1.5 rounded-xl text-[10px] font-bold flex items-center gap-1.5 shadow-sm transition">
-                     <Icon name="Download" className="w-3.5 h-3.5 text-white" /> Unduh PDF
-                   </button>
-                 </div>
-                 <div className="grid grid-cols-4 gap-1 text-center text-[10px] font-bold no-print">
-                    {['Periode I', 'Periode II', 'Periode III', 'Periode IV'].map(p => (
-                      <button key={p} onClick={() => setPeringkatPeriod(p)} className={`p-2 rounded-xl transition border ${peringkatPeriod === p ? 'bg-red-700 text-white border-red-700 shadow-sm' : 'bg-white text-gray-500 border-gray-200'}`}>{p}</button>
-                    ))}
-                 </div>
+      // =====================================================================
+      // PINDAHAN: KONTEN "PERINGKAT" & "RAPORT UKT" KINI DIRENDER PER EVENT
+      // DI BAGIAN PELAKSANAAN TIAP KARTU EVENT (TERLIHAT OLEH SEMUA PERAN)
+      // =====================================================================
+      const renderPeringkatSection = (ev) => {
+        const eventRaports = getEventRaports(ev);
+        const grouped = {};
+        eventRaports.forEach(r => {
+          if (!grouped[r.targetBelt]) grouped[r.targetBelt] = [];
+          grouped[r.targetBelt].push(r);
+        });
+        const activeBelts = beltSequence.filter(b => grouped[b] && grouped[b].length > 0);
+        return (
+          <div className="space-y-3 animate-fade-in">
+            <div className="bg-white p-4 rounded-3xl border shadow-sm">
+              <div className="flex justify-between items-center gap-2">
+                <h3 className="font-extrabold text-sm text-gray-800 flex items-center gap-1.5"><Icon name="Trophy" className="w-5 h-5 text-yellow-500" /> Peringkat Nilai &mdash; {ev.period}</h3>
+                <button onClick={() => handleDownloadPeringkatPDF(ev)} className="bg-red-700 hover:bg-red-800 text-white px-3 py-1.5 rounded-xl text-[10px] font-bold flex items-center gap-1.5 shadow-sm transition shrink-0">
+                  <Icon name="Download" className="w-3.5 h-3.5 text-white" /> Unduh PDF
+                </button>
               </div>
+              <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wider mt-1.5">Skor peserta pelaksanaan ini ({ev.executionDate || '-'}) &middot; {eventRaports.length} Raport</p>
+            </div>
+            {eventRaports.length === 0 ? (
+              <div className="text-center text-gray-400 text-xs py-8 italic bg-white rounded-3xl border shadow-sm">Belum ada data nilai UKT pada pelaksanaan ini.</div>
+            ) : activeBelts.map(belt => {
+              const sorted = grouped[belt].sort((a, b) => (b.raport?.totalScore || 0) - (a.raport?.totalScore || 0));
+              return (
+                <div key={belt} className="bg-white p-4 rounded-3xl border border-gray-100 shadow-sm space-y-3">
+                  <div className="flex justify-between items-center pb-2 border-b">
+                    <div className="flex items-center gap-2 pr-2">
+                      <div className={`w-3 h-3 rounded-full shrink-0 ${getBeltColorDot(belt)}`}></div>
+                      <span className="font-bold text-xs md:text-sm text-gray-800 leading-tight">{belt}</span>
+                    </div>
+                    <span className="text-[9px] md:text-[10px] font-bold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-md shrink-0">{sorted.length} Orang</span>
+                  </div>
+                  <div className="space-y-2">
+                    {sorted.map((r, idx) => {
+                      const isMe = r.athleteId === user.id;
+                      return (
+                        <div key={r.id} className={`flex justify-between items-center p-2.5 rounded-xl border transition ${isMe ? 'bg-red-50 border-red-300 ring-1 ring-red-200' : 'bg-gray-50 border-gray-100 hover:bg-gray-100'}`}>
+                          <div className="flex items-center gap-2 md:gap-3 flex-1 min-w-0 pr-2">
+                            <div className={`w-6 h-6 shrink-0 rounded-full flex items-center justify-center text-[10px] font-black ${idx === 0 ? 'bg-yellow-100 text-yellow-700 border border-yellow-300' : idx === 1 ? 'bg-gray-200 text-gray-600 border border-gray-400' : idx === 2 ? 'bg-orange-100 text-orange-700 border border-orange-300' : 'bg-white text-gray-400 border'}`}>
+                              {idx + 1}
+                            </div>
+                            <div className="min-w-0">
+                              <div className="font-bold text-xs text-gray-800 truncate flex items-center gap-1.5">
+                                <span className="truncate">{r.athlete.name}</span>
+                                {isMe && <span className="text-[8px] font-black text-red-700 bg-red-100 px-1.5 py-0.5 rounded-md border border-red-200 shrink-0">ANDA</span>}
+                              </div>
+                              <div className="text-[9px] text-gray-500 font-semibold truncate">{r.athlete.club}</div>
+                            </div>
+                          </div>
+                          <div className="flex flex-col items-end shrink-0">
+                            <span className="font-black text-sm text-red-700 leading-none">{r.raport?.totalScore || 0}</span>
+                            <span className={`text-[8px] font-bold uppercase mt-1 px-1.5 py-0.5 rounded ${r.passStatus === 'Lulus' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{r.passStatus}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        );
+      };
 
-              {(() => {
-                 // 1. Ambil raport sesuai periode
-                 const eligibleRaports = historicalRaports.filter(r => r.period === peringkatPeriod);
-                 
-                 // 2. Gabungkan dengan data Atlet & Filter Sesuai Hak Akses Admin
-                 const enrichedRaports = eligibleRaports.map(r => {
-                   const athlete = users.find(u => u.id === r.athleteId);
-                   return { ...r, athlete };
-                 }).filter(r => {
-                   if (!r.athlete) return false;
-                   if (user.role === 'super_admin') return true;
-                   if (user.role === 'pengurus_club' || user.role === 'pelatih') return r.athlete.club === user.club;
-                   return false;
-                 });
+      const renderRaportSection = (ev) => {
+        const isAtlet = user.role === 'atlet';
+        const baseRaports = getEventRaports(ev);
+        const eventRaports = isAtlet ? baseRaports.filter(r => r.athleteId === user.id) : baseRaports;
+        const selRaport = eventRaports.find(r => r.athleteId === Number(raportSelAthleteId)) || eventRaports[0];
+        const isEditingThis = !!(selRaport && editingRaportId === selRaport.id);
+        return (
+          <div className="space-y-3 animate-fade-in">
+            <div className="bg-white p-4 rounded-3xl border shadow-sm flex justify-between items-center gap-2">
+              <h3 className="font-extrabold text-sm text-gray-800 flex items-center gap-1.5"><Icon name="FileText" className="w-5 h-5 text-indigo-600" /> Raport UKT &mdash; {ev.period}</h3>
+              <span className="text-[9px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md border border-indigo-100 shrink-0">{eventRaports.length} Raport</span>
+            </div>
+            {eventRaports.length === 0 ? (
+              <div className="text-center text-gray-400 text-xs py-8 italic bg-white rounded-3xl border shadow-sm">
+                {isAtlet ? 'Anda belum memiliki raport pada pelaksanaan ini.' : 'Belum ada raport pada pelaksanaan ini.'}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {!isAtlet && (
+                  <div className="bg-white p-3 rounded-2xl border shadow-sm space-y-2 no-print">
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider">Pilih Peserta Pelaksanaan Ini:</label>
+                    <select value={selRaport.athleteId} onChange={e => { setRaportSelAthleteId(Number(e.target.value)); setEditingRaportId(null); setEditRaportData(null); }} className="w-full text-xs p-2.5 bg-gray-50 border rounded-xl">
+                      {eventRaports.map(r => (
+                        <option key={r.id} value={r.athleteId}>{r.athlete.name} &mdash; {r.targetBelt} ({r.passStatus || '-'})</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                {selRaport && (() => {
+                  const athlete = selRaport.athlete;
+                  return (
+                    <div className="space-y-3">
+                      <div className="flex justify-end gap-2 flex-wrap no-print">
+                        {user.role === 'super_admin' && !isEditingThis && (
+                          <>
+                            <button onClick={() => { setEditingRaportId(selRaport.id); setEditRaportData({ ...selRaport.raport }); }} className="flex items-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-white py-2 px-4 rounded-xl font-bold text-xs shadow-sm transition">
+                              <Icon name="Pencil" className="w-4 h-4 text-white" /> <span>Edit Nilai</span>
+                            </button>
+                            <button onClick={() => handleDeleteRaportUkt(selRaport.id)} className="flex items-center gap-1.5 bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-xl font-bold text-xs shadow-sm transition">
+                              <Icon name="Trash2" className="w-4 h-4 text-white" /> <span>Hapus</span>
+                            </button>
+                          </>
+                        )}
+                        {isEditingThis && (
+                          <>
+                            <button onClick={() => handleSaveEditRaportUkt(selRaport)} className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white py-2 px-4 rounded-xl font-bold text-xs shadow-sm transition">
+                              <Icon name="Save" className="w-4 h-4 text-white" /> <span>Simpan</span>
+                            </button>
+                            <button onClick={() => { setEditingRaportId(null); setEditRaportData(null); }} className="flex items-center gap-1.5 bg-gray-400 hover:bg-gray-500 text-white py-2 px-4 rounded-xl font-bold text-xs shadow-sm transition">
+                              <Icon name="X" className="w-4 h-4 text-white" /> <span>Batal</span>
+                            </button>
+                          </>
+                        )}
+                        <button onClick={() => window.print()} className="flex items-center gap-1.5 bg-red-700 hover:bg-red-800 text-white py-2 px-4 rounded-xl font-bold text-xs shadow-sm transition">
+                          <Icon name="Printer" className="w-4 h-4 text-white" /> <span>Cetak / PDF</span>
+                        </button>
+                      </div>
 
-                 if (enrichedRaports.length === 0) {
-                    return <div className="text-center text-gray-400 text-xs py-8 italic bg-white rounded-3xl border shadow-sm">Belum ada data nilai UKT pada periode ini.</div>;
-                 }
+                      {isEditingThis && editRaportData && (
+                        <div className="bg-amber-50 p-4 rounded-3xl border-2 border-amber-300 shadow-sm space-y-3 no-print animate-fade-in">
+                          <div className="flex items-center gap-2 pb-2 border-b border-amber-200">
+                            <Icon name="Pencil" className="w-5 h-5 text-amber-600" />
+                            <h4 className="font-extrabold text-sm text-amber-800">Mode Edit Raport (Super Admin)</h4>
+                          </div>
+                          <div className="grid grid-cols-2 gap-3">
+                            {raportComponents.map(comp => (
+                              <div key={comp.key} className="space-y-1">
+                                <label className="text-[10px] font-bold text-gray-600 uppercase">{comp.label}</label>
+                                <input type="number" min="0" max="10" value={editRaportData[comp.key] || 0} onChange={e => setEditRaportData(prev => ({ ...prev, [comp.key]: Number(e.target.value) }))} className="w-full p-2 bg-white border border-amber-200 rounded-xl text-xs font-bold text-center focus:ring-2 focus:ring-amber-400 focus:outline-none" />
+                              </div>
+                            ))}
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-gray-600 uppercase">Catatan Penguji</label>
+                            <textarea value={editRaportData.notes || ''} onChange={e => setEditRaportData(prev => ({ ...prev, notes: e.target.value }))} className="w-full p-2 bg-white border border-amber-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-400 focus:outline-none" rows="2" />
+                          </div>
+                          <div className="bg-white p-3 rounded-xl border border-amber-200 flex justify-between items-center text-xs">
+                            <span className="font-bold text-gray-500">Total Skor Baru:</span>
+                            <span className="font-black text-lg text-amber-700">{raportComponents.reduce((sum, comp) => sum + (Number(editRaportData[comp.key]) || 0), 0)} / 100</span>
+                          </div>
+                          <div className="flex gap-2">
+                            <button onClick={() => handleSaveEditRaportUkt(selRaport)} className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 rounded-xl font-bold text-xs shadow-md transition">Simpan Perubahan</button>
+                            <button onClick={() => { setEditingRaportId(null); setEditRaportData(null); }} className="flex-1 bg-gray-400 hover:bg-gray-500 text-white py-2.5 rounded-xl font-bold text-xs shadow-md transition">Batal</button>
+                          </div>
+                        </div>
+                      )}
 
-                 // 3. Kelompokkan berdasarkan Sabuk Tujuan
-                 const grouped = {};
-                 enrichedRaports.forEach(r => {
-                   if (!grouped[r.targetBelt]) grouped[r.targetBelt] = [];
-                   grouped[r.targetBelt].push(r);
-                 });
+                      <div id="print-area" className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm space-y-4 print:p-8 print:border-0 print:shadow-none">
+                        <div className="hidden print:flex flex-col items-center text-center border-b-4 border-gray-900 pb-3 mb-5">
+                          <h1 className="text-base font-black tracking-widest text-gray-900 leading-none">PENGURUS KABUPATEN TAEKWONDO INDONESIA (TI)</h1>
+                          <h2 className="text-lg font-black text-red-700 mt-1">KABUPATEN MUSI RAWAS</h2>
+                          <p className="text-[9px] text-gray-500 font-bold mt-1 uppercase tracking-wide">Alamat Sekretariat: Kec. Muara Beliti, Kabupaten Musi Rawas, Sumatera Selatan</p>
+                          <div className="w-full mt-2 border-t-2 border-gray-800"></div>
+                        </div>
 
-                 // 4. Urutkan kelompok sabuk sesuai urutan aslinya
-                 const activeBelts = beltSequence.filter(b => grouped[b] && grouped[b].length > 0);
+                        <div className="text-center space-y-0.5">
+                          <h3 className="font-extrabold text-xs text-gray-800 tracking-wider uppercase">RAPORT HASIL UJI KENAIKAN TINGKAT (UKT)</h3>
+                          <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">{selRaport.period} - TANGGAL: {selRaport.executionDate}</p>
+                        </div>
 
-                 return activeBelts.map(belt => {
-                   // Urutkan atlet berdasarkan Total Skor Tertinggi
-                   const sorted = grouped[belt].sort((a, b) => b.raport.totalScore - a.raport.totalScore);
-                   
-                   return (
-                     <div key={belt} className="bg-white p-4 rounded-3xl border border-gray-100 shadow-sm space-y-3">
-                       <div className="flex justify-between items-center pb-2 border-b">
-                         <div className="flex items-center gap-2 pr-2">
-                           <div className={`w-3 h-3 rounded-full shrink-0 ${getBeltColorDot(belt)}`}></div>
-                           <span className="font-bold text-xs md:text-sm text-gray-800 leading-tight">{belt}</span>
-                         </div>
-                         <span className="text-[9px] md:text-[10px] font-bold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-md shrink-0">{sorted.length} Orang</span>
-                       </div>
-                       
-                       <div className="space-y-2">
-                         {sorted.map((r, idx) => (
-                           <div key={r.id} className="flex justify-between items-center p-2.5 bg-gray-50 rounded-xl border border-gray-100 hover:bg-gray-100 transition">
-                             <div className="flex items-center gap-2 md:gap-3 flex-1 min-w-0 pr-2">
-                               <div className={`w-6 h-6 shrink-0 rounded-full flex items-center justify-center text-[10px] font-black ${idx === 0 ? 'bg-yellow-100 text-yellow-700 border border-yellow-300' : idx === 1 ? 'bg-gray-200 text-gray-600 border border-gray-400' : idx === 2 ? 'bg-orange-100 text-orange-700 border border-orange-300' : 'bg-white text-gray-400 border'}`}>
-                                 {idx + 1}
-                               </div>
-                               <div className="min-w-0">
-                                 <div className="font-bold text-xs text-gray-800 truncate">{r.athlete.name}</div>
-                                 <div className="text-[9px] text-gray-500 font-semibold truncate">{r.athlete.club}</div>
-                               </div>
-                             </div>
-                             <div className="flex flex-col items-end shrink-0">
-                               <span className="font-black text-sm text-red-700 leading-none">{r.raport.totalScore}</span>
-                               <span className={`text-[8px] font-bold uppercase mt-1 px-1.5 py-0.5 rounded ${r.passStatus === 'Lulus' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{r.passStatus}</span>
-                             </div>
-                           </div>
-                         ))}
-                       </div>
-                     </div>
-                   );
-                 });
-              })()}
+                        <div className="bg-gray-50 p-3.5 rounded-2xl border border-gray-100 space-y-2 text-xs print:bg-white print:border-gray-300">
+                          <div className="grid grid-cols-2 gap-y-1.5">
+                            <div className="flex flex-col">
+                              <span className="text-[9px] text-gray-400 font-bold uppercase">Nama Atlet</span>
+                              <span className="font-extrabold text-gray-800 text-sm">{athlete?.name || '-'}</span>
+                            </div>
+                            <div className="flex flex-col text-right">
+                              <span className="text-[9px] text-gray-400 font-bold uppercase">Sertifikat / No. Reg</span>
+                              <span className="font-bold text-gray-700">{athlete?.regNo || '-'}</span>
+                            </div>
+                            <div className="flex flex-col mt-1">
+                              <span className="text-[9px] text-gray-400 font-bold uppercase">Dojang / Club</span>
+                              <span className="font-bold text-red-800">{athlete?.club || '-'}</span>
+                            </div>
+                            <div className="flex flex-col text-right mt-1">
+                              <span className="text-[9px] text-gray-400 font-bold uppercase">Ujian Sabuk</span>
+                              <div className="flex items-center justify-end gap-1.5 mt-0.5">
+                                <VisualBelt beltName={selRaport.currentBelt} />
+                                <span className="text-gray-400 text-[10px] mx-0.5">&#10142;</span>
+                                <VisualBelt beltName={selRaport.targetBelt} />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest pl-1 block no-print">Rincian Komponen Nilai</span>
+                          <div className="border border-gray-100 rounded-2xl overflow-hidden shadow-sm print:border-gray-300 print:shadow-none">
+                            <table className="w-full text-left border-collapse text-xs">
+                              <thead>
+                                <tr className="bg-red-50 text-red-900 border-b border-gray-100 font-extrabold print:bg-gray-100 print:text-black print:border-gray-300">
+                                  <th className="p-3 w-10 text-center">No</th>
+                                  <th className="p-3">Komponen Penilaian</th>
+                                  <th className="p-3 text-center w-16">Skor (1-10)</th>
+                                  <th className="p-3 text-center w-24">Predikat</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-gray-100 bg-white">
+                                {raportComponents.map((comp, idx) => {
+                                  const score = selRaport.raport?.[comp.key] || 0;
+                                  return (
+                                    <tr key={comp.key} className="hover:bg-gray-50/50 print:hover:bg-transparent">
+                                      <td className="p-2.5 text-center font-bold text-gray-400 print:text-black">{idx + 1}</td>
+                                      <td className="p-2.5 font-bold text-gray-700 print:text-black">{comp.label}</td>
+                                      <td className="p-2.5 text-center font-extrabold text-gray-900 bg-gray-50/30 print:bg-transparent print:text-black">{score}</td>
+                                      <td className="p-2.5 text-center">
+                                        <span className={`inline-block px-2 py-0.5 rounded-md text-[9px] font-bold ${score >= 8 ? 'bg-green-50 text-green-700 border border-green-100' : score >= 6 ? 'bg-blue-50 text-blue-700 border border-blue-100' : score >= 3 ? 'bg-yellow-50 text-yellow-700 border border-yellow-100' : 'bg-red-50 text-red-700 border border-red-100'} print:bg-transparent print:border-none print:text-black print:p-0`}>
+                                          {getScorePredicate(score)}
+                                        </span>
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3 pt-2">
+                          <div className="bg-gray-50 p-3 rounded-2xl border border-gray-100 flex flex-col justify-center print:bg-transparent print:border-gray-300">
+                            <span className="text-[9px] text-gray-400 font-bold uppercase pl-0.5">Total Nilai Akumulasi</span>
+                            <div className="flex items-baseline gap-1 mt-0.5">
+                              <span className="text-xl font-black text-gray-800">{selRaport.raport?.totalScore || 0}</span>
+                              <span className="text-[10px] text-gray-400 font-bold">/ 100</span>
+                            </div>
+                          </div>
+                          <div className="p-3 rounded-2xl flex flex-col justify-center items-center text-center border border-gray-100 bg-red-50/20 print:bg-transparent print:border-gray-300">
+                            <span className="text-[9px] text-gray-400 font-bold uppercase">Status Keputusan</span>
+                            <span className={`text-xs font-black uppercase tracking-wider mt-1 px-3 py-1 rounded-full ${selRaport.passStatus === 'Lulus' ? 'bg-green-100 text-green-800 border border-green-200' : 'bg-red-100 text-red-800 border border-red-200'} print:text-black print:bg-transparent print:border-none`}>
+                              {selRaport.passStatus}
+                            </span>
+                          </div>
+                        </div>
+
+                        {selRaport.raport?.notes && (
+                          <div className="bg-amber-50/40 p-3 rounded-2xl border border-amber-100/50 text-xs print:bg-transparent print:border-gray-300">
+                            <span className="text-[9px] text-amber-800 font-bold uppercase pl-0.5 block mb-1">Catatan &amp; Rekomendasi Penguji:</span>
+                            <p className="text-gray-700 font-medium italic">"{selRaport.raport.notes}"</p>
+                          </div>
+                        )}
+
+                        <div className="hidden print:grid grid-cols-2 gap-4 pt-10 text-xs text-center font-bold text-gray-800">
+                          <div className="flex flex-col items-center">
+                            <p className="font-normal text-gray-500 text-[10px] uppercase">Mengetahui,</p>
+                            <p className="uppercase mt-1 font-black text-gray-950">PENGKAB TI MUSI RAWAS</p>
+                            <div className="h-16 flex items-center justify-center w-full my-1">
+                              {selRaport.raport?.ketuaSignature ? <img src={selRaport.raport.ketuaSignature} alt="TTD Ketua" className="max-h-full max-w-full object-contain" /> : <div className="h-full"></div>}
+                            </div>
+                            <p className="underline font-black">{selRaport.raport?.ketuaName || '( ............................................ )'}</p>
+                            <p className="text-[10px] text-gray-600 font-bold uppercase tracking-widest mt-0.5">Ketua</p>
+                          </div>
+                          <div className="flex flex-col items-center">
+                            <p className="font-normal text-gray-500 text-[10px] uppercase">Musi Rawas, {selRaport.executionDate}</p>
+                            <p className="uppercase mt-1">Penguji UKT Utama</p>
+                            <div className="h-16 flex items-center justify-center w-full my-1">
+                              {selRaport.raport?.examinerSignature ? <img src={selRaport.raport.examinerSignature} alt="TTD Penguji" className="max-h-full max-w-full object-contain" /> : <div className="h-full"></div>}
+                            </div>
+                            <p className="underline font-black text-gray-950">{selRaport.raport?.examiner || '( ............................................ )'}</p>
+                            <p className="text-[9px] text-gray-400">Lisensi Penguji TI</p>
+                          </div>
+                        </div>
+
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+          </div>
+        );
+      };
+
+      return (
+        <div className="space-y-4">
+          
+          {activeTab === 'daftar' && (
+            <div className="space-y-4">
+              {user.role === 'super_admin' && (
+                <button onClick={() => setShowCreateUKT(!showCreateUKT)} className="w-full bg-red-700 hover:bg-red-800 text-white py-2.5 rounded-2xl font-bold text-xs flex justify-center items-center gap-1.5 shadow no-print">
+                  <Icon name="Plus" className="w-4 h-4 text-white" /> Buat Event UKT Baru
+                </button>
+              )}
+              
+              {showCreateUKT && (
+                <form onSubmit={handleCreateUKTSubmit} className="bg-red-50 p-4 rounded-3xl border border-red-100 space-y-3 no-print">
+                  <input type="text" placeholder="Judul Kegiatan UKT" value={newTitle} onChange={e => setNewTitle(e.target.value)} className="w-full text-xs p-2.5 bg-white border rounded-xl" required />
+                  <div className="grid grid-cols-2 gap-2">
+                    <select value={newPeriod} onChange={e => setNewPeriod(e.target.value)} className="w-full text-xs p-2.5 bg-white border rounded-xl">
+                      <option value="Periode I">Periode I</option><option value="Periode II">Periode II</option><option value="Periode III">Periode III</option><option value="Periode IV">Periode IV</option>
+                    </select>
+                    <input type="date" value={newCloseDate} onChange={e => setNewCloseDate(e.target.value)} className="w-full text-xs p-2.5 bg-white border rounded-xl" required />
+                  </div>
+                  <input type="date" value={newExecDate} onChange={e => setNewExecDate(e.target.value)} className="w-full text-xs p-2.5 bg-white border rounded-xl" required />
+                
+                  <div className="space-y-2 border-t border-red-200 pt-2.5">
+                    <label className="block text-[10px] font-bold text-red-900 uppercase tracking-wider pl-1">Atur Biaya UKT Per Sabuk (Rp)</label>
+                    <div className="max-h-48 overflow-y-auto space-y-1.5 border border-red-100 p-2 rounded-xl bg-white hide-scrollbar">
+                      {beltSequence.map((belt) => (
+                        <div key={belt} className="flex justify-between items-center text-xs gap-2 border-b border-gray-50 pb-1 last:border-0 last:pb-0">
+                          <span className="truncate text-[10px] font-semibold text-gray-700">{belt}</span>
+                          <div className="flex items-center gap-1">
+                            <span className="text-[10px] text-gray-400">Rp</span>
+                            <input type="number" value={feesSetup[belt] || 0} onChange={e => setFeesSetup({ ...feesSetup, [belt]: Number(e.target.value) })} className="w-20 p-1 border rounded text-right text-xs font-bold focus:ring-1 focus:ring-red-500 focus:outline-none" min="0" required />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <button type="submit" className="w-full bg-red-700 text-white py-2.5 rounded-xl font-bold text-xs shadow-md">Simpan Event UKT (DB)</button>
+                </form>
+              )}
+
+              <div className="space-y-3">
+                {events.map(ev => { 
+                  const myRegistration = registrations.find(r => r.uktEventId === ev.id && r.athleteId === user.id); 
+                  const isSuperAdmin = user.role === 'super_admin';
+
+                  if (editingEventId === ev.id) {
+                    return (
+                      <form key={ev.id} onSubmit={handleSaveEditEvent} className="bg-amber-50/75 p-4 rounded-3xl border border-amber-200 space-y-3 animate-fade-in no-print">
+                        <div className="flex justify-between items-center pb-1.5 border-b border-amber-200">
+                          <span className="font-bold text-xs text-amber-900 uppercase">Ubah Event UKT</span>
+                          <button type="button" onClick={() => setEditingEventId(null)} className="text-gray-400 hover:text-gray-500"><Icon name="XCircle" className="w-5 h-5 text-gray-400" /></button>
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-gray-600 uppercase mb-1">Judul Kegiatan UKT</label>
+                          <input type="text" value={editTitle} onChange={e => setEditTitle(e.target.value)} className="w-full text-xs p-2.5 bg-white border border-gray-200 rounded-xl" required />
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="block text-[10px] font-bold text-gray-600 uppercase mb-1">Periode</label>
+                            <select value={editPeriod} onChange={e => setEditPeriod(e.target.value)} className="w-full text-xs p-2.5 bg-white border border-gray-200 rounded-xl">
+                              <option value="Periode I">Periode I</option><option value="Periode II">Periode II</option><option value="Periode III">Periode III</option><option value="Periode IV">Periode IV</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-gray-600 uppercase mb-1">Batas Daftar</label>
+                            <input type="date" value={editCloseDate} onChange={e => setEditCloseDate(e.target.value)} className="w-full text-xs p-2.5 bg-white border border-gray-200 rounded-xl" required />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-gray-600 uppercase mb-1">Tanggal Pelaksanaan</label>
+                          <input type="date" value={editExecDate} onChange={e => setEditExecDate(e.target.value)} className="w-full text-xs p-2.5 bg-white border border-gray-200 rounded-xl" required />
+                        </div>
+
+                        <div className="space-y-2 border-t border-amber-200 pt-2.5">
+                          <label className="block text-[10px] font-bold text-amber-950 uppercase tracking-wider pl-1">Biaya UKT Per Sabuk (Rp)</label>
+                          <div className="max-h-40 overflow-y-auto space-y-1.5 border border-amber-100 p-2 rounded-xl bg-white hide-scrollbar">
+                            {beltSequence.map((belt) => (
+                              <div key={belt} className="flex justify-between items-center text-xs gap-2 border-b border-gray-50 pb-1 last:border-0 last:pb-0">
+                                <span className="truncate text-[10px] font-semibold text-gray-700">{belt}</span>
+                                <div className="flex items-center gap-1">
+                                  <span className="text-[10px] text-gray-400">Rp</span>
+                                  <input type="number" value={editFees[belt] || 0} onChange={e => setEditFees({ ...editFees, [belt]: Number(e.target.value) })} className="w-20 p-1 border rounded text-right text-[10px] font-bold focus:ring-1 focus:ring-red-500 focus:outline-none" min="0" required />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="flex gap-2 pt-2">
+                          <button type="submit" className="flex-1 bg-amber-600 hover:bg-amber-700 text-white py-2 rounded-xl font-bold text-xs shadow">Simpan</button>
+                          <button type="button" onClick={() => setEditingEventId(null)} className="flex-1 bg-gray-400 hover:bg-gray-500 text-white py-2 rounded-xl font-bold text-xs shadow">Batal</button>
+                        </div>
+                      </form>
+                    );
+                  }
+
+                  return (
+                    <div key={ev.id} className="bg-white p-4 rounded-3xl border shadow-sm space-y-3 relative">
+                      {isSuperAdmin && (
+                        <div className="absolute top-3 right-3 flex gap-1.5 z-10 no-print">
+                          <button onClick={() => handleStartEditEvent(ev)} className="p-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-xl transition shadow-sm border border-blue-100" title="Edit Event UKT">
+                            <Icon name="Edit" className="w-3.5 h-3.5 text-blue-600" />
+                          </button>
+                          <button onClick={() => handleDeleteEvent(ev.id)} className="p-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl transition shadow-sm border border-red-100" title="Hapus Event UKT">
+                            <Icon name="Trash2" className="w-3.5 h-3.5 text-red-600" />
+                          </button>
+                        </div>
+                      )}
+                      <h4 className="font-extrabold text-sm text-gray-800 leading-snug pr-16">{ev.title}</h4>
+                      <div className="text-[10px] text-gray-400 font-bold uppercase flex gap-1.5 items-center">
+                        <Icon name="Calendar" className="w-3.5 h-3.5 text-red-600" />
+                        <span>Pelaksanaan: {ev.executionDate || '-'} ({ev.period})</span>
+                      </div>
+                      <div className="flex justify-between items-center bg-gray-50 p-2.5 rounded-2xl">
+                        <span className="text-[10px] text-gray-500 font-bold uppercase">Batas Daftar:</span>
+                        <CountdownTimer closeDateString={ev.closeDate} />
+                      </div>
+                      <div className="pt-1 space-y-3 border-t border-dashed border-gray-200">
+                        <span className="block text-[9px] font-black text-gray-400 uppercase tracking-widest">Pelaksanaan UKT — {ev.period}</span>
+                        {(user.role === 'super_admin' || user.role === 'pengurus_club') && (
+                          <>
+                            <button
+                              onClick={() => toggleSection(ev.id, 'kelola')}
+                              className={`w-full py-2.5 px-3 rounded-2xl font-bold text-[11px] flex justify-between items-center shadow-sm transition border no-print ${expandedSection === `${ev.id}|kelola` ? 'bg-red-700 text-white border-red-700' : 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'}`}
+                            >
+                              <span className="flex items-center gap-1.5 uppercase tracking-wide">
+                                <Icon name="ClipboardList" className="w-4 h-4" /> Kelola &amp; Nilai
+                              </span>
+                              <Icon name={expandedSection === `${ev.id}|kelola` ? 'ChevronUp' : 'ChevronDown'} className="w-4 h-4" />
+                            </button>
+                            {expandedSection === `${ev.id}|kelola` && renderKelolaNilaiSection(ev)}
+                          </>
+                        )}
+                        <button
+                          onClick={() => toggleSection(ev.id, 'peringkat')}
+                          className={`w-full py-2.5 px-3 rounded-2xl font-bold text-[11px] flex justify-between items-center shadow-sm transition border no-print ${expandedSection === `${ev.id}|peringkat` ? 'bg-amber-600 text-white border-amber-600' : 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'}`}
+                        >
+                          <span className="flex items-center gap-1.5 uppercase tracking-wide">
+                            <Icon name="Trophy" className="w-4 h-4" /> Peringkat
+                          </span>
+                          <Icon name={expandedSection === `${ev.id}|peringkat` ? 'ChevronUp' : 'ChevronDown'} className="w-4 h-4" />
+                        </button>
+                        {expandedSection === `${ev.id}|peringkat` && renderPeringkatSection(ev)}
+                        <button
+                          onClick={() => toggleSection(ev.id, 'raport')}
+                          className={`w-full py-2.5 px-3 rounded-2xl font-bold text-[11px] flex justify-between items-center shadow-sm transition border no-print ${expandedSection === `${ev.id}|raport` ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100'}`}
+                        >
+                          <span className="flex items-center gap-1.5 uppercase tracking-wide">
+                            <Icon name="FileText" className="w-4 h-4" /> Raport UKT
+                          </span>
+                          <Icon name={expandedSection === `${ev.id}|raport` ? 'ChevronUp' : 'ChevronDown'} className="w-4 h-4" />
+                        </button>
+                        {expandedSection === `${ev.id}|raport` && renderRaportSection(ev)}
+                      </div>
+
+                      
+                      {user.role === 'atlet' && !myRegistration && (() => {
+                        const isRegistrationClosed = new Date() >= new Date(ev.closeDate);
+                        return isRegistrationClosed ? (
+                          <div className="space-y-3 pt-3 border-t">
+                            <div className="bg-red-50 p-3 rounded-xl border border-red-200 text-center">
+                              <Icon name="Lock" className="w-5 h-5 text-red-400 mx-auto mb-1" />
+                              <span className="text-xs font-black text-red-600 uppercase">Pendaftaran Ditutup</span>
+                              <p className="text-[10px] text-red-400 font-bold mt-1">Batas pendaftaran telah berakhir.</p>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="space-y-3 pt-3 border-t">
+                            <div className="bg-blue-50 p-3 rounded-xl border border-blue-100 space-y-2 flex justify-between items-center text-xs">
+                              <span className="font-bold text-gray-600">Sabuk Sekarang:</span>
+                              <span className={getBeltBadgeClass(user.sabuk)}>{user.sabuk || 'Sabuk Putih Polos (Geup 10)'}</span>
+                            </div>
+                            <div className="bg-green-50 p-3 rounded-xl border border-green-100 space-y-2 flex justify-between items-center text-xs">
+                              <span className="font-bold text-green-700">Naik ke Target:</span>
+                              <span className={getBeltBadgeClass(defaultTargetBelt)}>{defaultTargetBelt}</span>
+                            </div>
+                            <div className="bg-red-50 p-3 rounded-xl text-center flex justify-between items-center px-4">
+                              <span className="text-[10px] text-red-700 font-bold uppercase">Biaya:</span>
+                              <span className="text-sm font-black text-red-800">Rp {(ev.fees?.[defaultTargetBelt] || 0).toLocaleString('id-ID')}</span>
+                            </div>
+                            <button onClick={() => handleRegister(ev, defaultTargetBelt)} className="w-full bg-red-600 hover:bg-red-700 text-white py-3 rounded-xl font-bold text-xs shadow-md flex items-center justify-center gap-2">
+                              <Icon name="ClipboardCheck" className="w-4 h-4 text-white" /> Daftar UKT Sekarang
+                            </button>
+                          </div>
+                        );
+                      })()}
+
+                      {myRegistration && (
+                        <div className="p-3.5 bg-gray-50 rounded-2xl border border-gray-100 space-y-2 text-xs">
+                          <div className="flex justify-between items-center pb-1 border-b">
+                            <span>Sabuk Target:</span>
+                            <span className={getBeltBadgeClass(myRegistration.targetBelt)}>{myRegistration.targetBelt}</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span>Status:</span>
+                            {myRegistration.status === 'rejected' ? (
+                              <span className="font-black text-red-700">DITOLAK</span>
+                            ) : (
+                              <span className="font-black text-blue-700">{myRegistration.status === 'confirmed' ? 'DIKONFIRMASI' : 'MENUNGGU'}</span>
+                            )}
+                          </div>
+                          {myRegistration.status === 'rejected' && (
+                            <div className="text-center mt-2 p-2 bg-red-50 text-red-700 rounded-xl font-bold text-[10px] border border-red-200">
+                              Pendaftaran Anda Ditolak oleh Admin. Hubungi pengurus untuk informasi lebih lanjut.
+                            </div>
+                          )}
+                          {myRegistration.status === 'confirmed' && myRegistration.paymentStatus === 'pending' && (
+                            <div className="text-center mt-2 p-2 bg-amber-50 text-amber-700 rounded-xl font-bold text-[10px] border border-amber-200">
+                              Menunggu Konfirmasi Pembayaran Admin
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
-
-          {activeTab === 'raport' && <RaportView user={user} users={users} historicalRaports={historicalRaports} triggerToast={triggerToast} addRaport={addRaport} updateRaport={updateRaport} deleteRaport={deleteRaport} />}
+          
         </div>
       );
     }
@@ -6189,7 +6503,7 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
       );
     }
 
-    function ChampionshipView({ user, events, addChamp, updateChamp, deleteChamp, registrations, addChampReg, updateChampReg, triggerToast, users, points, addPoint }) {
+    function ChampionshipView({ user, events, addChamp, updateChamp, deleteChamp, registrations, addChampReg, updateChampReg, triggerToast, users, points, addPoint, poinRules }) {
       const [showAddForm, setShowAddForm] = useState(false); 
       const [title, setTitle] = useState(''); 
       const [level, setLevel] = useState('Kabupaten'); 
@@ -6236,7 +6550,8 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
         // Auto poin untuk mengikuti event
         const eventType = event.type || 'Kejuaraan';
         const eventCategory = eventType === 'Kejuaraan' ? 'Event Kejuaraan' : eventType === 'Latihan Gabungan' ? 'Event LatGab' : 'Event Kegiatan Lain';
-        const champPointMap = { 'Kabupaten': 1, 'Provinsi': 2, 'Nasional': 3 };
+        const evPoinRule = (k, d) => (poinRules && poinRules[k] !== undefined ? poinRules[k] : d);
+        const champPointMap = { 'Kabupaten': evPoinRule('event_kabupaten', 1), 'Provinsi': evPoinRule('event_provinsi', 2), 'Nasional': evPoinRule('event_nasional', 3) };
         const autoPoints = champPointMap[event.level] || 1;
         const existingChampPoint = points?.find(p => p.athleteId === user.id && p.eventName === event.title && p.category === eventCategory);
         if (!existingChampPoint && addPoint) {
@@ -6453,7 +6768,7 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
       );
     }
 
-    function PointsView({ user, points, addPoint, updatePoint, deletePoint, users, clubs, triggerToast }) {
+    function PointsView({ user, points, addPoint, updatePoint, deletePoint, users, clubs, triggerToast, poinRules, updatePointSetting }) {
       const isAtletOrPelatih = user.role === 'atlet' || user.role === 'pelatih';
       const [pointTab, setPointTab] = useState(user.role === 'atlet' ? 'poinku' : user.role === 'pelatih' ? 'clubSaya' : 'leaderboard');
       const [searchQuery, setSearchQuery] = useState('');
@@ -6467,6 +6782,9 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
 
       const [editingPointId, setEditingPointId] = useState(null);
       const [editPointData, setEditPointData] = useState({});
+      const [manualPoints, setManualPoints] = useState('');
+      const [editPointsOverride, setEditPointsOverride] = useState('');
+      const [ruleDraft, setRuleDraft] = useState({});
       
       // State baru untuk fitur Lihat Riwayat
       const [viewingHistoryAthleteId, setViewingHistoryAthleteId] = useState(null);
@@ -6521,38 +6839,34 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
       
       const isEventCategory = (cat) => cat === 'Event Kejuaraan' || cat === 'Event LatGab' || cat === 'Event Kegiatan Lain';
 
-      const getAutomaticPoints = (cat, div, mdl, lvl) => { 
-        if (cat === 'UKT/Diklat') return mdl === 'Lulus UKT' ? 5 : 3;
-        if (isEventCategory(cat)) {
-          if (lvl === 'Kabupaten') return 1;
-          if (lvl === 'Provinsi') return 2;
-          if (lvl === 'Nasional') return 3;
-        }
-
-        if (mdl === 'Partisipasi') {
-          if (lvl === 'Kabupaten') return 1;
-          if (lvl === 'Provinsi') return 2;
-          if (lvl === 'Nasional') return 3;
-        }
-
+      const ruleVal = (k, d) => (poinRules && poinRules[k] !== undefined ? Number(poinRules[k]) : d);
+      const getAutomaticPoints = (cat, div, mdl, lvl) => {
+        const L = String(lvl || '').toLowerCase();
+        if (cat === 'UKT/Diklat') return mdl === 'Lulus UKT' ? ruleVal('ukt_lulus', 5) : ruleVal('ukt_mengikuti', 3);
+        if (isEventCategory(cat)) return ruleVal('event_' + L, 1);
+        if (mdl === 'Partisipasi') return ruleVal('partisipasi_' + L, 1);
         if (div === 'Pemula') {
-          if (mdl === 'Emas') return lvl === 'Kabupaten' ? 1 : lvl === 'Provinsi' ? 2 : 3;
-          if (mdl === 'Perak') return lvl === 'Kabupaten' ? 0 : lvl === 'Provinsi' ? 1 : 2;
-          if (mdl === 'Perunggu') return lvl === 'Kabupaten' ? 0 : lvl === 'Provinsi' ? 1 : 2; 
+          if (mdl === 'Emas') return ruleVal('pemula_emas_' + L, L === 'kabupaten' ? 1 : L === 'provinsi' ? 2 : 3);
+          if (mdl === 'Perak') return ruleVal('pemula_perak_' + L, L === 'kabupaten' ? 0 : L === 'provinsi' ? 1 : 2);
+          if (mdl === 'Perunggu') return ruleVal('pemula_perunggu_' + L, L === 'kabupaten' ? 0 : L === 'provinsi' ? 1 : 2);
         }
-
+        if (div === 'Semi Prestasi') {
+          if (mdl === 'Emas') return ruleVal('semiprestasi_emas_' + L, L === 'kabupaten' ? 2 : L === 'provinsi' ? 3 : 4);
+          if (mdl === 'Perak') return ruleVal('semiprestasi_perak_' + L, L === 'kabupaten' ? 1 : L === 'provinsi' ? 2 : 3);
+          if (mdl === 'Perunggu') return ruleVal('semiprestasi_perunggu_' + L, L === 'kabupaten' ? 0 : L === 'provinsi' ? 1 : 2);
+        }
         if (div === 'Prestasi') {
-          if (mdl === 'Emas') return lvl === 'Kabupaten' ? 3 : lvl === 'Provinsi' ? 4 : 5;
-          if (mdl === 'Perak') return lvl === 'Kabupaten' ? 2 : lvl === 'Provinsi' ? 3 : 4;
-          if (mdl === 'Perunggu') return lvl === 'Kabupaten' ? 1 : lvl === 'Provinsi' ? 2 : 3;
+          if (mdl === 'Emas') return ruleVal('prestasi_emas_' + L, L === 'kabupaten' ? 3 : L === 'provinsi' ? 4 : 5);
+          if (mdl === 'Perak') return ruleVal('prestasi_perak_' + L, L === 'kabupaten' ? 2 : L === 'provinsi' ? 3 : 4);
+          if (mdl === 'Perunggu') return ruleVal('prestasi_perunggu_' + L, L === 'kabupaten' ? 1 : L === 'provinsi' ? 2 : 3);
         }
-
-        return 0; 
+        return 0;
       };
       
       const handleAddPointSubmit = (e) => { 
         e.preventDefault(); 
-        const calculatedPoints = getAutomaticPoints(category, division, medal, level); 
+        const autoPointsVal = getAutomaticPoints(category, division, medal, level);
+        const calculatedPoints = manualPoints !== '' && !isNaN(Number(manualPoints)) ? Number(manualPoints) : autoPointsVal; 
         let achievementText = medal === 'Partisipasi' ? 'Partisipasi' : `Juara (${medal})`;
         if (category === 'UKT/Diklat') achievementText = medal === 'Lulus UKT' ? 'Lulus UKT' : 'Mengikuti UKT';
         if (isEventCategory(category)) achievementText = medal === 'Partisipasi' ? 'Mengikuti Event' : `Juara (${medal})`;
@@ -6564,7 +6878,7 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
           poomsaeCategory: category === 'Poomsae' ? poomsaeCategory : '',
           score: category === 'Poomsae' ? poomsaeScore : ''
         }); 
-        setEventName(''); setWeightClass(''); setPoomsaeScore(''); setShowAddPoint(false); triggerToast(`Sukses! (+${calculatedPoints} POIN) disimpan di DB.`); 
+        setEventName(''); setWeightClass(''); setPoomsaeScore(''); setShowAddPoint(false); setManualPoints(''); triggerToast(`Sukses! (+${calculatedPoints} POIN) disimpan di DB.`); 
       };
 
       const handleStartEditPoint = (p) => {
@@ -6578,11 +6892,13 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
         
         setEditingPointId(p.id);
         setEditPointData({...p, medal: currentMedal});
+        setEditPointsOverride('');
       };
 
       const handleSaveEditPoint = (e) => {
         e.preventDefault();
-        const calculatedPoints = getAutomaticPoints(editPointData.category, editPointData.division, editPointData.medal, editPointData.level); 
+        const autoPointsEdit = getAutomaticPoints(editPointData.category, editPointData.division, editPointData.medal, editPointData.level);
+        const calculatedPoints = editPointsOverride !== '' && !isNaN(Number(editPointsOverride)) ? Number(editPointsOverride) : autoPointsEdit; 
         let achievementText = editPointData.medal === 'Partisipasi' ? 'Partisipasi' : `Juara (${editPointData.medal})`;
         if (editPointData.category === 'UKT/Diklat') achievementText = editPointData.medal === 'Lulus UKT' ? 'Lulus UKT' : 'Mengikuti UKT';
         if (isEventCategory(editPointData.category)) achievementText = editPointData.medal === 'Partisipasi' ? 'Mengikuti Event' : `Juara (${editPointData.medal})`;
@@ -6602,6 +6918,26 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
           triggerToast("Riwayat poin dihapus permanen.");
         }
       };
+      // ===== PENGATURAN POIN KEGIATAN (Super Admin) =====
+      const handleSavePoinRules = () => {
+        const ids = Object.keys(ruleDraft);
+        const valid = ids.filter(id => ruleDraft[id] !== '' && !isNaN(Number(ruleDraft[id])));
+        if (valid.length === 0) { triggerToast("Tidak ada nilai baru untuk disimpan.", "error"); return; }
+        valid.forEach(id => {
+          const rule = POINT_RULES.find(r => r.id === id);
+          updatePointSetting(id, { id, label: rule ? rule.label : id, value: Number(ruleDraft[id]) });
+        });
+        setRuleDraft({});
+        triggerToast(valid.length + " pengaturan poin tersimpan ke Database!");
+      };
+
+      const handleResetPoinRules = () => {
+        if (!window.confirm("Pulihkan SEMUA pengaturan poin ke nilai default?")) return;
+        POINT_RULES.forEach(r => updatePointSetting(r.id, { id: r.id, label: r.label, value: r.def }));
+        setRuleDraft({});
+        triggerToast("Pengaturan poin dikembalikan ke nilai default!");
+      };
+
 
       // FUNGSI UNDUH PDF
       const handleDownloadPointsPDF = (targetAthleteId) => {
@@ -6958,8 +7294,88 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
             {!isAtletOrPelatih && (
               <button onClick={() => {setPointTab('leaderboard'); setViewingHistoryAthleteId(null);}} className={`flex-1 py-1.5 text-xs rounded-lg font-bold transition-all ${pointTab === 'leaderboard' && !viewingHistoryAthleteId ? 'bg-white text-red-700 shadow-sm' : 'text-gray-500'}`}>Leaderboard</button>
             )}
+            {user.role === 'super_admin' && (
+              <button onClick={() => {setPointTab('pengaturan'); setViewingHistoryAthleteId(null);}} className={`shrink-0 py-1.5 px-2 text-[10px] rounded-lg font-bold transition-all ${pointTab === 'pengaturan' && !viewingHistoryAthleteId ? 'bg-white text-red-700 shadow-sm' : 'text-gray-500'}`}>Pengaturan</button>
+            )}
           </div>
 
+          {/* VIEW: PENGATURAN POIN KEGIATAN (Hanya Super Admin) */}
+          {pointTab === 'pengaturan' && user.role === 'super_admin' && (
+            <div className="space-y-4 animate-fade-in">
+              <div className="bg-white p-4 rounded-3xl border shadow-sm">
+                <div className="flex justify-between items-center gap-2 flex-wrap">
+                  <h3 className="font-extrabold text-sm text-gray-800 flex items-center gap-1.5"><Icon name="Settings" className="w-5 h-5 text-red-600" /> Pengaturan Poin Kegiatan</h3>
+                  <div className="flex gap-1.5">
+                    <button onClick={handleSavePoinRules} className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-xl text-[10px] font-bold flex items-center gap-1 shadow-sm transition"><Icon name="Save" className="w-3.5 h-3.5 text-white" /> Simpan Semua</button>
+                    <button onClick={handleResetPoinRules} className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1.5 rounded-xl text-[10px] font-bold flex items-center gap-1 shadow-sm transition"><Icon name="RotateCcw" className="w-3.5 h-3.5" /> Pulihkan Default</button>
+                  </div>
+                </div>
+                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-1.5 leading-relaxed">Nilai di bawah dipakai otomatis saat: konfirmasi pendaftar UKT, penilaian/lulus UKT, pendaftaran event kejuaraan, serta form Input Prestasi Baru (boleh ditimpa manual saat input). Ubah nilai lalu klik Simpan Semua.</p>
+              </div>
+
+              <div className="bg-white p-4 rounded-3xl border shadow-sm space-y-2.5">
+                <h4 className="font-extrabold text-xs text-gray-700 uppercase flex items-center gap-1.5 border-b pb-2"><Icon name="ClipboardList" className="w-4 h-4 text-red-600" /> UKT &amp; Diklat</h4>
+                {POINT_RULES.filter(r => r.group === 'ukt').map(r => (
+                  <div key={r.id} className="flex justify-between items-center gap-3">
+                    <span className="text-xs font-bold text-gray-600">{r.label}</span>
+                    <input type="number" min="0" value={ruleDraft[r.id] !== undefined ? ruleDraft[r.id] : ruleVal(r.id, r.def)} onChange={e => setRuleDraft({ ...ruleDraft, [r.id]: e.target.value })} className="w-20 text-xs p-2 bg-gray-50 border rounded-xl text-center font-black text-red-700" />
+                  </div>
+                ))}
+              </div>
+
+              <div className="bg-white p-4 rounded-3xl border shadow-sm space-y-2.5">
+                <h4 className="font-extrabold text-xs text-gray-700 uppercase flex items-center gap-1.5 border-b pb-2"><Icon name="Calendar" className="w-4 h-4 text-red-600" /> Mengikuti Event (Kejuaraan / LatGab / Kegiatan Lain)</h4>
+                {POINT_RULES.filter(r => r.group === 'event').map(r => (
+                  <div key={r.id} className="flex justify-between items-center gap-3">
+                    <span className="text-xs font-bold text-gray-600">Level {r.label}</span>
+                    <input type="number" min="0" value={ruleDraft[r.id] !== undefined ? ruleDraft[r.id] : ruleVal(r.id, r.def)} onChange={e => setRuleDraft({ ...ruleDraft, [r.id]: e.target.value })} className="w-20 text-xs p-2 bg-gray-50 border rounded-xl text-center font-black text-red-700" />
+                  </div>
+                ))}
+              </div>
+
+              <div className="bg-white p-4 rounded-3xl border shadow-sm space-y-2.5">
+                <h4 className="font-extrabold text-xs text-gray-700 uppercase flex items-center gap-1.5 border-b pb-2"><Icon name="User" className="w-4 h-4 text-red-600" /> Partisipasi Kejuaraan Kyorugi / Poomsae (Tanpa Medali)</h4>
+                {POINT_RULES.filter(r => r.group === 'partisipasi').map(r => (
+                  <div key={r.id} className="flex justify-between items-center gap-3">
+                    <span className="text-xs font-bold text-gray-600">Level {r.label}</span>
+                    <input type="number" min="0" value={ruleDraft[r.id] !== undefined ? ruleDraft[r.id] : ruleVal(r.id, r.def)} onChange={e => setRuleDraft({ ...ruleDraft, [r.id]: e.target.value })} className="w-20 text-xs p-2 bg-gray-50 border rounded-xl text-center font-black text-red-700" />
+                  </div>
+                ))}
+              </div>
+
+              {[{ key: 'pemula', title: 'Medali Divisi Pemula' }, { key: 'semiprestasi', title: 'Medali Divisi Semi Prestasi' }, { key: 'prestasi', title: 'Medali Divisi Prestasi' }].map(g => (
+                <div key={g.key} className="bg-white p-4 rounded-3xl border shadow-sm space-y-2">
+                  <h4 className="font-extrabold text-xs text-gray-700 uppercase flex items-center gap-1.5 border-b pb-2"><Icon name="Medal" className="w-4 h-4 text-amber-500" /> {g.title}</h4>
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="text-[9px] font-bold text-gray-400 uppercase">
+                        <th className="text-left py-1">Medali</th>
+                        <th className="py-1">Kabupaten</th>
+                        <th className="py-1">Provinsi</th>
+                        <th className="py-1">Nasional</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {['emas', 'perak', 'perunggu'].map(mdl => (
+                        <tr key={mdl} className="border-t border-gray-50">
+                          <td className="py-1.5 font-bold text-gray-600 capitalize">{mdl}</td>
+                          {['kabupaten', 'provinsi', 'nasional'].map(lvl => {
+                            const rid = g.key + '_' + mdl + '_' + lvl;
+                            const ruleObj = POINT_RULES.find(r => r.id === rid);
+                            return (
+                              <td key={lvl} className="text-center py-1">
+                                <input type="number" min="0" value={ruleDraft[rid] !== undefined ? ruleDraft[rid] : ruleVal(rid, ruleObj ? ruleObj.def : 0)} onChange={e => setRuleDraft({ ...ruleDraft, [rid]: e.target.value })} className="w-14 text-xs p-1.5 bg-gray-50 border rounded-lg text-center font-black text-red-700" />
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ))}
+            </div>
+          )}
           {/* VIEW: POINKU (Hanya untuk Atlet) */}
           {pointTab === 'poinku' && user.role === 'atlet' && (
              <div className="space-y-4 animate-fade-in">
@@ -7246,7 +7662,7 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
                                      <input type="text" value={editPointData.eventName} onChange={e => setEditPointData({...editPointData, eventName: e.target.value})} className="w-full text-xs p-2 border border-amber-100 rounded-lg" required placeholder="Nama Event" />
                                      <div className="grid grid-cols-2 gap-2">
                                        <select value={editPointData.category} onChange={e => setEditPointData({...editPointData, category: e.target.value})} className="w-full text-xs p-2 border border-amber-100 rounded-lg"><option value="Kyorugi">Kyorugi</option><option value="Poomsae">Poomsae</option><option value="UKT/Diklat">UKT/Diklat</option><option value="Event Kejuaraan">Event Kejuaraan</option><option value="Event LatGab">Event LatGab</option><option value="Event Kegiatan Lain">Event Kegiatan Lain</option></select>
-                                       <select value={editPointData.division} onChange={e => setEditPointData({...editPointData, division: e.target.value})} className="w-full text-xs p-2 border border-amber-100 rounded-lg"><option value="Prestasi">Prestasi</option><option value="Pemula">Pemula</option></select>
+                                       <select value={editPointData.division} onChange={e => setEditPointData({...editPointData, division: e.target.value})} className="w-full text-xs p-2 border border-amber-100 rounded-lg"><option value="Prestasi">Prestasi</option><option value="Semi Prestasi">Semi Prestasi</option><option value="Pemula">Pemula</option></select>
                                      </div>
                                      <div className="grid grid-cols-2 gap-2">
                                        {editPointData.category === 'UKT/Diklat' ? (
@@ -7255,6 +7671,10 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
                                            <select value={editPointData.medal} onChange={e => setEditPointData({...editPointData, medal: e.target.value})} className="w-full text-xs p-2 border border-amber-100 rounded-lg"><option value="Emas">Emas</option><option value="Perak">Perak</option><option value="Perunggu">Perunggu</option><option value="Partisipasi">Partisipasi (Peserta)</option></select>
                                        )}
                                        <select value={editPointData.level} onChange={e => setEditPointData({...editPointData, level: e.target.value})} className="w-full text-xs p-2 border border-amber-100 rounded-lg"><option value="Kabupaten">Kabupaten</option><option value="Provinsi">Provinsi</option><option value="Nasional">Nasional</option></select>
+                                     </div>
+                                     <div className="bg-amber-50 rounded-lg p-2 mb-2">
+                                       <label className="text-[9px] font-bold text-amber-800 uppercase block mb-1">Nilai Poin Manual (kosongkan = otomatis {getAutomaticPoints(editPointData.category, editPointData.division, editPointData.medal, editPointData.level)})</label>
+                                       <input type="number" min="0" value={editPointsOverride} onChange={e => setEditPointsOverride(e.target.value)} placeholder="Kosongkan = nilai otomatis" className="w-full text-xs p-2 bg-white border border-amber-200 rounded-lg text-center font-black text-red-700" />
                                      </div>
                                      <div className="flex gap-2 mt-2">
                                        <button type="submit" className="flex-1 bg-green-600 hover:bg-green-700 text-white py-1.5 rounded-lg text-[10px] font-bold shadow-sm transition">Simpan Edit</button>
@@ -7325,7 +7745,7 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
                         
                         <div className="grid grid-cols-2 gap-2">
                           <select value={category} onChange={e => setCategory(e.target.value)} className="w-full text-xs p-2.5 bg-white border rounded-xl"><option value="Kyorugi">Kyorugi</option><option value="Poomsae">Poomsae</option><option value="UKT/Diklat">UKT/Diklat</option><option value="Event Kejuaraan">Event Kejuaraan</option><option value="Event LatGab">Event LatGab</option><option value="Event Kegiatan Lain">Event Kegiatan Lain</option></select>
-                          <select value={division} onChange={e => setDivision(e.target.value)} className="w-full text-xs p-2.5 bg-white border rounded-xl"><option value="Prestasi">Prestasi</option><option value="Pemula">Pemula</option></select>
+                          <select value={division} onChange={e => setDivision(e.target.value)} className="w-full text-xs p-2.5 bg-white border rounded-xl"><option value="Prestasi">Prestasi</option><option value="Semi Prestasi">Semi Prestasi</option><option value="Pemula">Pemula</option></select>
                         </div>
 
                         {category === 'Kyorugi' && (
@@ -7347,7 +7767,14 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
                           <select value={level} onChange={e => setLevel(e.target.value)} className="w-full text-xs p-2.5 bg-white border rounded-xl"><option value="Kabupaten">Kabupaten</option><option value="Provinsi">Provinsi</option><option value="Nasional">Nasional</option></select>
                         </div>
                         
-                        <div className="p-2.5 bg-amber-50 rounded-xl text-center text-xs font-bold text-amber-800">Estimasi Poin: <span className="text-sm font-black text-red-700">+{getAutomaticPoints(category, division, medal, level)} POIN</span></div>
+                        <div className="p-2.5 bg-amber-50 rounded-xl space-y-2">
+                          <div className="flex justify-between items-center text-[10px] font-bold text-amber-800 uppercase">
+                            <span>Nilai Poin</span>
+                            <span>Otomatis: <span className="text-sm font-black text-red-700">+{getAutomaticPoints(category, division, medal, level)}</span></span>
+                          </div>
+                          <input type="number" min="0" value={manualPoints} onChange={e => setManualPoints(e.target.value)} placeholder="Kosongkan = pakai nilai otomatis" className="w-full text-xs p-2 bg-white border border-amber-200 rounded-xl text-center font-black text-red-700" />
+                          <p className="text-[9px] text-amber-700 font-bold text-center">Nilai otomatis mengikuti menu Pengaturan Poin. Isi angka untuk menentukan poin manual.</p>
+                        </div>
                         <button type="submit" className="w-full bg-red-700 text-white py-2.5 rounded-xl font-bold text-xs shadow">Submit Poin & Data (DB)</button>
                       </form>
                     )}
@@ -7838,12 +8265,12 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
         triggerToast("PDF Data Akun (Urut Sabuk) berhasil diunduh!");
       };
 
-      const handleToggleFeature = (roleKey, featureKey) => {
+      const handleToggleFeature = (roleKey, featureKey, forceValue) => {
         const updated = {
           ...featureSettings,
           [roleKey]: {
             ...featureSettings[roleKey],
-            [featureKey]: !featureSettings[roleKey]?.[featureKey]
+            [featureKey]: forceValue !== undefined ? forceValue : !featureSettings[roleKey]?.[featureKey]
           }
         };
         updateFeatureSettings(updated);
@@ -8160,6 +8587,20 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
                       </div>
                       <p className="text-[8px] text-gray-400 mt-2 font-bold uppercase tracking-wide">Direkomendasikan: Rasio 1:1, Latar Transparan (PNG).</p>
                    </div>
+                </div>
+              </div>
+
+              <div className="bg-white p-4 rounded-3xl border shadow-sm space-y-3">
+                <span className="font-extrabold text-xs text-red-800 uppercase block border-b pb-1">Halaman Login</span>
+                <p className="text-[10px] text-gray-500 mb-2">Kendalikan fitur yang tampil pada halaman login publik sebelum pengguna masuk ke sistem. Perubahan langsung berlaku ke semua perangkat.</p>
+                <div className="flex justify-between items-center gap-3 p-3 bg-gray-50 rounded-xl border">
+                  <div className="flex-1">
+                    <span className="text-xs font-bold text-gray-700 block">Tombol Registrasi Atlet</span>
+                    <p className="text-[9px] text-gray-400 leading-relaxed">Tampilkan atau sembunyikan tombol "Belum punya akun? Registrasi Atlet" pada halaman login.</p>
+                  </div>
+                  <button type="button" onClick={() => handleToggleFeature('login', 'registrasi', featureSettings?.login?.registrasi !== false ? false : true)} className={`w-10 h-6 rounded-full p-1 transition-all duration-300 shrink-0 ${featureSettings?.login?.registrasi !== false ? 'bg-red-600 text-right' : 'bg-gray-300 text-left'}`}>
+                    <div className="w-4 h-4 bg-white rounded-full shadow-md inline-block"></div>
+                  </button>
                 </div>
               </div>
 
