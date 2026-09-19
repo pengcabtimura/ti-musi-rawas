@@ -3294,6 +3294,8 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
       const [pointSettings, addPointSetting, updatePointSetting] = useDbCollection('pointSettings', initialPointSettings, authUser);
       const poinRules = getPoinRulesMap(pointSettings);
       const [historicalRaports, addRaport, updateRaport, deleteRaport] = useDbCollection('historicalRaports', initialHistoricalRaports, authUser);
+      // Task 20: item penilaian UKT per sabuk (pengaturan super admin, tersimpan cloud)
+      const [uktPenilaianItems, addUktPenilaianItem, updateUktPenilaianItem, deleteUktPenilaianItem] = useDbCollection('uktPenilaianItems', [], authUser);
       const [clubsData, addClub, updateClub, deleteClub] = useDbCollection('clubs', initialClubs, authUser);
       const [attendances, addAttendance, updateAttendance, deleteAttendance] = useDbCollection('attendances', initialAttendances, authUser);
       const [sppBills, addSppBill, updateSppBill, deleteSppBill] = useDbCollection('sppBills', initialSppBills, authUser);
@@ -3380,7 +3382,7 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
         const allDataPayload = {
           users, clubsData, uktEvents, championships, articles,
           uktRegistrations, champRegistrations, athletePoints,
-          historicalRaports, attendances, sppBills, sppPayments, sanctions, physicalTests, physicalNorms, customTestTypes, featureSettings
+          historicalRaports, uktPenilaianItems, attendances, sppBills, sppPayments, sanctions, physicalTests, physicalNorms, customTestTypes, featureSettings
         };
         const blob = new Blob([JSON.stringify(allDataPayload, null, 2)], { type: 'application/json' });
         window.__universalSaveBlob(blob, `Backup_Full_Sistem_TIMura_${new Date().toISOString().split('T')[0]}.json`);
@@ -3404,6 +3406,7 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
             if(parsed.champRegistrations) { parsed.champRegistrations.forEach(item => {addChampReg(item); count++;}); }
             if(parsed.athletePoints) { parsed.athletePoints.forEach(item => {addPoint(item); count++;}); }
             if(parsed.historicalRaports) { parsed.historicalRaports.forEach(item => {addRaport(item); count++;}); }
+            if(parsed.uktPenilaianItems) { parsed.uktPenilaianItems.forEach(item => {addUktPenilaianItem(item); count++;}); }
             if(parsed.attendances) { parsed.attendances.forEach(item => {addAttendance(item); count++;}); }
             if(parsed.sppBills) { parsed.sppBills.forEach(item => {addSppBill(item); count++;}); }
             if(parsed.sppPayments) { parsed.sppPayments.forEach(item => {addSppPayment(item); count++;}); }
@@ -3464,7 +3467,7 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
             if (!isFeatureAllowed(activeUser.role, 'ukt')) {
               return <div className="text-center py-10 font-bold text-gray-400">Anda tidak diizinkan mengakses modul UKT.</div>;
             }
-            return <UKTView user={activeUser} events={uktEvents} addUktEvent={addUktEvent} updateUktEvent={updateUktEvent} deleteUktEvent={deleteUktEvent} registrations={uktRegistrations} addUktReg={addUktReg} updateUktReg={updateUktReg} users={users} updateUser={updateUser} points={athletePoints} addPoint={addPoint} historicalRaports={historicalRaports} addRaport={addRaport} updateRaport={updateRaport} deleteRaport={deleteRaport} triggerToast={triggerToast} poinRules={poinRules} />;
+            return <UKTView user={activeUser} events={uktEvents} addUktEvent={addUktEvent} updateUktEvent={updateUktEvent} deleteUktEvent={deleteUktEvent} registrations={uktRegistrations} addUktReg={addUktReg} updateUktReg={updateUktReg} users={users} updateUser={updateUser} points={athletePoints} addPoint={addPoint} historicalRaports={historicalRaports} addRaport={addRaport} updateRaport={updateRaport} deleteRaport={deleteRaport} triggerToast={triggerToast} poinRules={poinRules} penilaianItems={uktPenilaianItems} addPenilaianItem={addUktPenilaianItem} updatePenilaianItem={updateUktPenilaianItem} deletePenilaianItem={deleteUktPenilaianItem} />;
           
           case 'kejuaraan': 
             if (!isFeatureAllowed(activeUser.role, 'kejuaraan')) {
@@ -4720,7 +4723,7 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
       );
     }
 
-    function UKTView({ user, events, addUktEvent, updateUktEvent, deleteUktEvent, registrations, addUktReg, updateUktReg, users, updateUser, points, addPoint, historicalRaports, addRaport, updateRaport, deleteRaport, triggerToast, poinRules }) {
+    function UKTView({ user, events, addUktEvent, updateUktEvent, deleteUktEvent, registrations, addUktReg, updateUktReg, users, updateUser, points, addPoint, historicalRaports, addRaport, updateRaport, deleteRaport, triggerToast, poinRules, penilaianItems = [], addPenilaianItem, updatePenilaianItem, deletePenilaianItem }) {
       const [activeTab, setActiveTab] = useState('daftar');
       const uktPoinMengikuti = poinRules && poinRules.ukt_mengikuti !== undefined ? poinRules.ukt_mengikuti : 3;
       const uktPoinLulus = poinRules && poinRules.ukt_lulus !== undefined ? poinRules.ukt_lulus : 5; 
@@ -4736,6 +4739,32 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
         const key = String(evId) + '|' + type;
         setExpandedSection(prev => (prev === key ? null : key));
       };
+
+      // ===== Task 19: TANGGAL & JAM DAFTAR + ANTI-GANDA =====
+      // Kunci proses pendaftaran: mencegah klik ganda/cepat membuat dua pendaftaran sekaligus
+      const submittingRegRef = useRef(false);
+      // Waktu pendaftaran (ms) untuk urutan dedupe
+      const regTimeVal = (r) => { const v = r.registeredAt ? Date.parse(r.registeredAt) : (typeof r.id === 'number' ? r.id : Date.parse(r.id)); return isNaN(v) ? 0 : v; };
+      // Format "19/09/2026 14:35" (waktu lokal perangkat)
+      const formatRegDateTime = (iso) => { if (!iso) return '-'; const d = new Date(iso); if (isNaN(d.getTime())) return '-'; const p2 = (n) => String(n).padStart(2, '0'); return p2(d.getDate()) + '/' + p2(d.getMonth() + 1) + '/' + d.getFullYear() + ' ' + p2(d.getHours()) + ':' + p2(d.getMinutes()); };
+      // Format ringkas utk PDF: "19/09/26 14:35"
+      const formatRegDateTimeShort = (iso) => { if (!iso) return '-'; const f = formatRegDateTime(iso); if (f === '-') return '-'; const pr = f.split(' '); const dp = pr[0].split('/'); return dp[0] + '/' + dp[1] + '/' + dp[2].slice(2) + ' ' + pr[1]; };
+      // ANTI-GANDA tampilan: satu akun hanya tampil satu kali per pelaksanaan.
+      // Prioritas dokumen yang dipertahankan: yang sudah punya raport, lalu yang terbaru.
+      const dedupeUKTRegs = (regs) => {
+        const seen = {};
+        return regs.slice().sort((a, b) => {
+          const ar = a.raport ? 1 : 0, br = b.raport ? 1 : 0;
+          if (ar !== br) return br - ar;
+          return regTimeVal(b) - regTimeVal(a);
+        }).filter(reg => {
+          const k = String(reg.athleteId) + '|' + String(reg.uktEventId);
+          if (seen[k]) return false;
+          seen[k] = true;
+          return true;
+        });
+      };
+      // ===== AKHIR Task 19 helper =====
 
       // =====================================================================
       // HELPER PER-EVENT: raport milik peserta pelaksanaan (event) tertentu.
@@ -4769,11 +4798,47 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
         { key: 'mental', label: 'Kerapian & Mental Spiritual (Attitude)' }
       ];
 
+      // =====================================================================
+      // Task 20: ITEM PENILAIAN PER SABUK (PENGATURAN SUPER ADMIN)
+      // Item bawaan memakai id = key raport lama agar raport lama 100% kompatibel
+      // =====================================================================
+      const DEFAULT_PENILAIAN_ITEMS = [
+        { id: 'pukulan', label: 'Pukulan (Jireugi)', standarNilai: 10 },
+        { id: 'tangkisan', label: 'Tangkisan (Makki)', standarNilai: 10 },
+        { id: 'tendangan', label: 'Tendangan (Chagi)', standarNilai: 10 },
+        { id: 'kudaKuda', label: 'Sikap Kuda-Kuda (Seogi)', standarNilai: 10 },
+        { id: 'taegeuk', label: 'Jurus (Taegeuk / Poomsae)', standarNilai: 10 },
+        { id: 'kyorugi', label: 'Pertarungan (Kyorugi)', standarNilai: 10 },
+        { id: 'fisik', label: 'Kekuatan Fisik & Stamina', standarNilai: 10 },
+        { id: 'pengetahuan', label: 'Pengetahuan Umum Taekwondo', standarNilai: 10 },
+        { id: 'kyukpa', label: 'Pemecahan Papan (Kyukpa)', standarNilai: 10 },
+        { id: 'mental', label: 'Kerapian & Mental Spiritual (Attitude)', standarNilai: 10 }
+      ];
+      // Apakah konfigurasi ini persis item bawaan? (urutan & id sama)
+      const isDefaultPenConfig = (items) => Array.isArray(items) && items.length === DEFAULT_PENILAIAN_ITEMS.length && items.every((it, i) => it.id === DEFAULT_PENILAIAN_ITEMS[i].id);
+      // Item kustom mentah suatu sabuk (dipakai UI Pengaturan, tanpa fallback)
+      const rawPenilaianItemsForBelt = (belt) => (penilaianItems || []).filter(it => it.sabuk === belt).sort((a, b) => ((a.urutan || 0) - (b.urutan || 0)) || ((a.id || 0) - (b.id || 0)));
+      // Item penilaian suatu sabuk: kustom dari cloud, atau bawaan bila belum diatur
+      const getPenilaianItemsForBelt = (belt) => {
+        const custom = rawPenilaianItemsForBelt(belt);
+        return custom.length > 0 ? custom : DEFAULT_PENILAIAN_ITEMS;
+      };
+      const beltPenilaianItems = rawPenilaianItemsForBelt;
+      // Baris nilai raport (mendukung raport dinamis "items" & raport lama field tetap)
+      const getPenRows = (rd) => (rd && Array.isArray(rd.items) && rd.items.length > 0)
+        ? rd.items.map(it => ({ key: it.id, label: it.label, standar: Number(it.standarNilai) || 0, score: Number(it.score) || 0 }))
+        : raportComponents.map(c => ({ key: c.key, label: c.label, standar: 10, score: Number(rd && rd[c.key]) || 0 }));
+      // Batas lulus proporsional: 51% dari total standar (bawaan 10x10=100 -> 51)
+      const passThresholdOf = (maxTotal) => Math.ceil((Number(maxTotal) || 0) * 0.51);
+
       // Edit & hapus raport dari section Pelaksanaan (khusus Super Admin)
       const handleSaveEditRaportUkt = (raport) => {
         if (!editRaportData || !raport) return;
-        const totalScore = raportComponents.reduce((sum, comp) => sum + (Number(editRaportData[comp.key]) || 0), 0);
-        const passStatus = totalScore >= 51 ? 'Lulus' : 'Tidak Lulus';
+        // Task 20: dukung raport dinamis (items) & raport lama (field tetap)
+        const erIsItems = Array.isArray(editRaportData.items) && editRaportData.items.length > 0;
+        const totalScore = erIsItems ? editRaportData.items.reduce((sum, it) => sum + (Number(it.score) || 0), 0) : raportComponents.reduce((sum, comp) => sum + (Number(editRaportData[comp.key]) || 0), 0);
+        const erMaxTotal = erIsItems ? editRaportData.items.reduce((sum, it) => sum + (Number(it.standarNilai) || 0), 0) : 100;
+        const passStatus = totalScore >= passThresholdOf(erMaxTotal) ? 'Lulus' : 'Tidak Lulus';
         updateRaport(raport.id, { ...raport, raport: { ...editRaportData, totalScore }, passStatus });
         triggerToast("Raport berhasil diperbarui!");
         setEditingRaportId(null);
@@ -4924,16 +4989,18 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
       });
 
       const [gradingRegId, setGradingRegId] = useState(null); 
-      const [scorePukulan, setScorePukulan] = useState(8); 
-      const [scoreTangkisan, setScoreTangkisan] = useState(8); 
-      const [scoreTendangan, setScoreTendangan] = useState(8); 
-      const [scoreKudaKuda, setScoreKudaKuda] = useState(8); 
-      const [scoreTaegeuk, setScoreTaegeuk] = useState(8); 
-      const [scoreKyorugi, setScoreKyorugi] = useState(8); 
-      const [scoreFisik, setScoreFisik] = useState(8); 
-      const [scorePengetahuan, setScorePengetahuan] = useState(8); 
-      const [scoreKyukpa, setScoreKyukpa] = useState(8); 
-      const [scoreMental, setScoreMental] = useState(8); 
+      // ===== Task 20: state Pengaturan Item Penilaian (per sabuk) =====
+      const [showPenilaianSettings, setShowPenilaianSettings] = useState(false);
+      const [penilaianBelt, setPenilaianBelt] = useState(beltSequence[0]);
+      const [newItemLabel, setNewItemLabel] = useState('');
+      const [newItemStandar, setNewItemStandar] = useState(10);
+      const [editingPenItemId, setEditingPenItemId] = useState(null);
+      const [editPenLabel, setEditPenLabel] = useState('');
+      const [editPenStandar, setEditPenStandar] = useState(10);
+      const [copyFromBelt, setCopyFromBelt] = useState('');
+      // ===== Task 20: skor dinamis mengikuti item penilaian sabuk target =====
+      const [gradeItems, setGradeItems] = useState(DEFAULT_PENILAIAN_ITEMS);
+      const [gradeScores, setGradeScores] = useState({});
       const [examinerNotes, setExaminerNotes] = useState('');
       
       const [ketuaName, setKetuaName] = useState('Panca Riatno, S.E.');
@@ -4941,7 +5008,56 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
       const [examinerName, setExaminerName] = useState(user.name);
       const [examinerSignature, setExaminerSignature] = useState('');
 
-      const currentTotalScore = Number(scorePukulan) + Number(scoreTangkisan) + Number(scoreTendangan) + Number(scoreKudaKuda) + Number(scoreTaegeuk) + Number(scoreKyorugi) + Number(scoreFisik) + Number(scorePengetahuan) + Number(scoreKyukpa) + Number(scoreMental);
+      const gradeMaxTotal = gradeItems.reduce((s, it) => s + (Number(it.standarNilai) || 0), 0);
+      const currentTotalScore = gradeItems.reduce((s, it) => s + (Number(gradeScores[it.id]) || 0), 0);
+
+      // ===== Task 20: handler CRUD item penilaian per sabuk (Super Admin) =====
+      const handleAddPenilaianItem = () => {
+        const label = String(newItemLabel || '').trim();
+        if (!label) { triggerToast('Nama item penilaian wajib diisi!', 'error'); return; }
+        const standar = Number(newItemStandar);
+        if (!standar || standar < 1) { triggerToast('Standar nilai harus angka minimal 1!', 'error'); return; }
+        const cur = beltPenilaianItems(penilaianBelt);
+        if (cur.length >= 20) { triggerToast('Maksimal 20 item penilaian per sabuk!', 'error'); return; }
+        if (cur.some(it => String(it.label || '').toLowerCase() === label.toLowerCase())) { triggerToast('Item dengan nama itu sudah ada pada sabuk ini!', 'error'); return; }
+        addPenilaianItem({ id: Date.now(), sabuk: penilaianBelt, label: label, standarNilai: standar, urutan: cur.length + 1 });
+        setNewItemLabel(''); setNewItemStandar(10);
+        triggerToast('Item "' + label + '" ditambahkan untuk ' + penilaianBelt + '!');
+      };
+      const handleStartEditPenItem = (it) => { setEditingPenItemId(it.id); setEditPenLabel(it.label || ''); setEditPenStandar(it.standarNilai || 10); };
+      const handleSaveEditPenItem = () => {
+        const it = beltPenilaianItems(penilaianBelt).find(x => x.id === editingPenItemId);
+        if (!it) { setEditingPenItemId(null); return; }
+        const label = String(editPenLabel || '').trim();
+        if (!label) { triggerToast('Nama item penilaian wajib diisi!', 'error'); return; }
+        const standar = Number(editPenStandar);
+        if (!standar || standar < 1) { triggerToast('Standar nilai harus angka minimal 1!', 'error'); return; }
+        updatePenilaianItem(it.id, { ...it, label: label, standarNilai: standar });
+        setEditingPenItemId(null);
+        triggerToast('Item penilaian berhasil diperbarui!');
+      };
+      const handleDeletePenItem = (it) => {
+        if (!window.confirm('Hapus item penilaian "' + it.label + '" dari ' + it.sabuk + '?')) return;
+        deletePenilaianItem(it.id);
+        if (editingPenItemId === it.id) setEditingPenItemId(null);
+        triggerToast('Item penilaian "' + it.label + '" berhasil dihapus!');
+      };
+      const handleCopyPenItems = () => {
+        if (!copyFromBelt) { triggerToast('Pilih sabuk sumber untuk menyalin item!', 'error'); return; }
+        const srcBelt = beltPenilaianItems(copyFromBelt);
+        if (srcBelt.length === 0) { triggerToast('Sabuk sumber masih memakai item bawaan (tidak ada yang bisa disalin).', 'error'); return; }
+        if (beltPenilaianItems(penilaianBelt).length > 0) { triggerToast('Sabuk tujuan sudah memiliki item kustom. Reset dulu sebelum menyalin!', 'error'); return; }
+        srcBelt.forEach((it, i) => addPenilaianItem({ id: Date.now() + i + 1, sabuk: penilaianBelt, label: it.label, standarNilai: Number(it.standarNilai) || 10, urutan: i + 1 }));
+        triggerToast(srcBelt.length + ' item berhasil disalin dari ' + copyFromBelt + ' ke ' + penilaianBelt + '!');
+      };
+      const handleResetPenItems = () => {
+        const cur = beltPenilaianItems(penilaianBelt);
+        if (cur.length === 0) return;
+        if (!window.confirm('Reset item penilaian ' + penilaianBelt + ' ke bawaan? ' + cur.length + ' item kustom akan dihapus.')) return;
+        cur.forEach(it => deletePenilaianItem(it.id));
+        setEditingPenItemId(null);
+        triggerToast('Item penilaian ' + penilaianBelt + ' direset ke bawaan (10 item standar)!');
+      };
       
       const handleImageUpload = (e, setter) => {
         const file = e.target.files[0];
@@ -4991,6 +5107,8 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
       };
 
       const handleRegister = (event, targetBeltToRegister) => {
+        // ANTI-GANDA: saat proses pendaftaran berjalan, klik apa pun diabaikan
+        if (submittingRegRef.current) { return; }
         // Cek apakah pendaftaran sudah ditutup
         const now = new Date();
         const closeDate = new Date(event.closeDate);
@@ -5000,10 +5118,12 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
         }
         const cost = event.fees[targetBeltToRegister] || 100000; 
         if (registrations.find(r => r.uktEventId === event.id && r.athleteId === user.id)) { 
-          triggerToast("Anda sudah terdaftar.", "error"); return; 
+          triggerToast("Anda sudah terdaftar pada pelaksanaan UKT ini. Satu akun hanya boleh mendaftar satu kali!", "error"); return; 
         } 
-        addUktReg({ id: Date.now(), uktEventId: event.id, athleteId: user.id, targetBelt: targetBeltToRegister, cost, status: 'pending_confirmation', paymentStatus: 'pending', raport: null, passStatus: null }); 
-        triggerToast(`Pendaftaran terkirim (Cloud DB)!`); 
+        submittingRegRef.current = true;
+        addUktReg({ id: Date.now(), uktEventId: event.id, athleteId: user.id, targetBelt: targetBeltToRegister, cost, status: 'pending_confirmation', paymentStatus: 'pending', raport: null, passStatus: null, registeredAt: new Date().toISOString() }); 
+        triggerToast(`Pendaftaran terkirim (Cloud DB)!`);
+        setTimeout(() => { submittingRegRef.current = false; }, 2000); 
       };
 
       const handleApproveRegistration = (regId) => { 
@@ -5033,18 +5153,22 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
       
       const handleSaveRaport = (e) => {
         e.preventDefault(); 
-        const finalStatus = currentTotalScore >= 51 ? 'Lulus' : 'Tidak Lulus'; 
+        const finalStatus = currentTotalScore >= passThresholdOf(gradeMaxTotal) ? 'Lulus' : 'Tidak Lulus'; 
         const matchingReg = registrations.find(r => r.id === gradingRegId); 
         const eventInfo = events.find(ev => ev.id === matchingReg.uktEventId); 
         const targetAthlete = users.find(u => u.id === matchingReg.athleteId);
         
-        const updatedRaportData = { 
-          pukulan: Number(scorePukulan), tangkisan: Number(scoreTangkisan), tendangan: Number(scoreTendangan), 
-          kudaKuda: Number(scoreKudaKuda), taegeuk: Number(scoreTaegeuk), kyorugi: Number(scoreKyorugi), 
-          fisik: Number(scoreFisik), pengetahuan: Number(scorePengetahuan), kyukpa: Number(scoreKyukpa), 
-          mental: Number(scoreMental), totalScore: currentTotalScore, examiner: examinerName, notes: examinerNotes,
-          ketuaName: ketuaName, ketuaSignature: ketuaSignature, examinerSignature: examinerSignature
-        };
+        // Task 20: simpan nilai mengikuti item penilaian sabuk target.
+        // Konfigurasi bawaan (10 item standar) -> tetap tulis field lama (pukulan, tangkisan, dst.)
+        // agar seluruh tampilan & data lama tetap kompatibel; field items juga ikut disimpan.
+        const raportItemsPayload = gradeItems.map(it => ({ id: it.id, label: it.label, standarNilai: Number(it.standarNilai) || 0, score: Number(gradeScores[it.id]) || 0 }));
+        const raportCommonFields = { totalScore: currentTotalScore, examiner: examinerName, notes: examinerNotes, ketuaName: ketuaName, ketuaSignature: ketuaSignature, examinerSignature: examinerSignature, items: raportItemsPayload };
+        const updatedRaportData = isDefaultPenConfig(gradeItems) ? {
+          pukulan: Number(gradeScores['pukulan']) || 0, tangkisan: Number(gradeScores['tangkisan']) || 0, tendangan: Number(gradeScores['tendangan']) || 0,
+          kudaKuda: Number(gradeScores['kudaKuda']) || 0, taegeuk: Number(gradeScores['taegeuk']) || 0, kyorugi: Number(gradeScores['kyorugi']) || 0,
+          fisik: Number(gradeScores['fisik']) || 0, pengetahuan: Number(gradeScores['pengetahuan']) || 0, kyukpa: Number(gradeScores['kyukpa']) || 0,
+          mental: Number(gradeScores['mental']) || 0, ...raportCommonFields
+        } : { ...raportCommonFields };
         
         updateUktReg(gradingRegId, { ...matchingReg, passStatus: finalStatus, raport: updatedRaportData });
         addRaport({ id: Date.now(), athleteId: matchingReg.athleteId, period: eventInfo?.period || 'Periode I', executionDate: eventInfo?.executionDate || 'Hari Ini', currentBelt: targetAthlete?.sabuk || 'Sabuk Putih Polos (Geup 10)', targetBelt: matchingReg.targetBelt, passStatus: finalStatus, raport: updatedRaportData });
@@ -5071,8 +5195,8 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
       };
 
       const handleDownloadUKTData = () => {
-        const headers = ['Nama Lengkap', 'Tempat Lahir', 'Tanggal Lahir', 'Nomor Reg', 'Sabuk Sekarang', 'Sabuk Yang Akan Naik', 'Nama Event UKT', 'Status Verifikasi', 'Status Bayar'];
-        const rows = registrations.map(reg => {
+        const headers = ['Nama Lengkap', 'Tempat Lahir', 'Tanggal Lahir', 'Nomor Reg', 'Sabuk Sekarang', 'Sabuk Yang Akan Naik', 'Nama Event UKT', 'Status Verifikasi', 'Status Bayar', 'Tanggal & Jam Daftar'];
+        const rows = dedupeUKTRegs(registrations).map(reg => {
           const athlete = users.find(u => u.id === reg.athleteId);
           const event = events.find(e => e.id === reg.uktEventId);
           if (!athlete) return null;
@@ -5085,7 +5209,8 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
             `"${(reg.targetBelt || '-').replace(/"/g, '""')}"`, 
             `"${(event ? event.title : '-').replace(/"/g, '""')}"`, 
             `"${reg.status === 'confirmed' ? 'LAYAK (DIKONFIRMASI)' : 'MENUNGGU'}"`,
-            `"${reg.paymentStatus === 'paid' ? 'LUNAS' : 'PENDING'}"`
+            `"${reg.paymentStatus === 'paid' ? 'LUNAS' : 'PENDING'}"`,
+            `"${formatRegDateTime(reg.registeredAt)}"`
           ];
         }).filter(Boolean);
 
@@ -5287,13 +5412,14 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
               athlete?.sabuk ? athlete.sabuk.split(' (')[0].replace('Sabuk ', '') : "Putih",
               athlete?.club || "-",
               reg.status === 'confirmed' ? 'Layak' : reg.status === 'rejected' ? 'Ditolak' : 'Menunggu',
-              reg.paymentStatus === 'paid' ? 'Lunas' : 'Pending'
+              reg.paymentStatus === 'paid' ? 'Lunas' : 'Pending',
+              formatRegDateTimeShort(reg.registeredAt)
             ];
           });
 
           doc.autoTable({
             startY: yPos,
-            head: [['No', 'Nama Lengkap', 'Tmp Lahir', 'Tgl Lahir', 'No. Reg', 'Sabuk', 'Unit/Club', 'Status', 'Bayar']],
+            head: [['No', 'Nama Lengkap', 'Tmp Lahir', 'Tgl Lahir', 'No. Reg', 'Sabuk', 'Unit/Club', 'Status', 'Bayar', 'Tgl Daftar']],
             body: tableBody,
             margin: { left: marginL, right: marginR },
             styles: { fontSize: 6.5, cellPadding: 1.5, font: 'helvetica', lineColor: [230, 230, 230], lineWidth: 0.15 },
@@ -5308,7 +5434,8 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
               5: { cellWidth: 18, fontStyle: 'italic', fontSize: 5.8 },
               6: { cellWidth: 20, fontStyle: 'bold', fontSize: 6 },
               7: { halign: 'center', cellWidth: 13 },
-              8: { halign: 'center', cellWidth: 11 }
+              8: { halign: 'center', cellWidth: 11 },
+              9: { cellWidth: 21, fontSize: 5.8 }
             }
           });
 
@@ -5337,13 +5464,14 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
               '-',
               athlete?.club || "-",
               reg.status === 'confirmed' ? 'Layak' : 'Menunggu',
-              reg.paymentStatus === 'paid' ? 'Lunas' : 'Pending'
+              reg.paymentStatus === 'paid' ? 'Lunas' : 'Pending',
+              formatRegDateTimeShort(reg.registeredAt)
             ];
           });
 
           doc.autoTable({
             startY: yPos,
-            head: [['No', 'Nama Lengkap', 'Tmp Lahir', 'Tgl Lahir', 'No. Reg', 'Sabuk', 'Unit/Club', 'Status', 'Bayar']],
+            head: [['No', 'Nama Lengkap', 'Tmp Lahir', 'Tgl Lahir', 'No. Reg', 'Sabuk', 'Unit/Club', 'Status', 'Bayar', 'Tgl Daftar']],
             body: noBeltBody,
             margin: { left: marginL, right: marginR },
             styles: { fontSize: 6.5, cellPadding: 1.5, font: 'helvetica', lineColor: [230, 230, 230], lineWidth: 0.15 },
@@ -5358,7 +5486,8 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
               5: { cellWidth: 18 },
               6: { cellWidth: 20, fontStyle: 'bold', fontSize: 6 },
               7: { halign: 'center', cellWidth: 13 },
-              8: { halign: 'center', cellWidth: 11 }
+              8: { halign: 'center', cellWidth: 11 },
+              9: { cellWidth: 21, fontSize: 5.8 }
             }
           });
           yPos = doc.lastAutoTable.finalY + 4;
@@ -5462,7 +5591,7 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
         doc.text(periodName, mL + 100, 42.5);
         doc.text(execDate, mL + 155, 42.5);
         doc.text(regsToExport.length + ' orang', mL + 215, 42.5);
-        doc.text('1 - 10 per komponen', mL + 247, 42.5);
+        doc.text('Sesuai standar item', mL + 247, 42.5);
         // Baris 2 info
         doc.setFont("helvetica", "bold");
         doc.setTextColor(30, 41, 59);
@@ -5475,7 +5604,7 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
         doc.text("Kriteria Kelulusan:", mL + 125, 46.5);
         doc.setFont("helvetica", "normal");
         doc.setTextColor(80, 80, 80);
-        doc.text('Total Skor >= 70 (LULUS)  |  < 70 (TIDAK LULUS)', mL + 160, 46.5);
+        doc.text('Total Skor >= 51% dari Skor Maksimal (LULUS)', mL + 160, 46.5);
 
         let yPos = 52;
 
@@ -5498,8 +5627,26 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
         const compHeaders = ['Pukulan\n(Jireugi)', 'Tangkisan\n(Makki)', 'Tendangan\n(Chagi)', 'Kuda-Kuda\n(Seogi)', 'Jurus\n(Taegeuk)', 'Kyorugi', 'Fisik &\nStamina', 'Penget.\nTaekwondo', 'Kyukpa', 'Mental &\nAttitude'];
         const compKeys = ['pukulan','tangkisan','tendangan','kudaKuda','taegeuk','kyorugi','fisik','pengetahuan','kyukpa','mental'];
 
+        // Task 20: gaya kolom dinamis sesuai jumlah item penilaian sabuk
+        const penTableColStyles = (nComp) => {
+          const fixedBefore = 8 + 38 + 28 + 9;
+          const fixedAfter = 14 + 16 + 22;
+          const compW = Math.max(7, Math.min(18, Math.floor((cW - fixedBefore - fixedAfter) / Math.max(1, nComp))));
+          const cs = { 0: { halign: 'center', cellWidth: 8 }, 1: { cellWidth: 38, fontStyle: 'bold', fontSize: 6.5 }, 2: { cellWidth: 28 }, 3: { halign: 'center', cellWidth: 9 } };
+          for (let ci = 0; ci < nComp; ci++) cs[4 + ci] = { halign: 'center', cellWidth: compW };
+          cs[4 + nComp] = { halign: 'center', cellWidth: 14, fontStyle: 'bold' };
+          cs[5 + nComp] = { halign: 'center', cellWidth: 16, fontStyle: 'bold' };
+          cs[6 + nComp] = { cellWidth: 22 };
+          return cs;
+        };
+
         activeBelts.forEach((belt) => {
           const beltGroup = groupedByBelt[belt];
+
+          // Task 20: komponen penilaian mengikuti pengaturan per sabuk (fallback: item bawaan)
+          const beltPenItems = getPenilaianItemsForBelt(belt);
+          const compHeaders = beltPenItems.map(it => it.label);
+          const compKeys = beltPenItems.map(it => String(it.id));
 
           if (yPos > 175) { doc.addPage(); yPos = 15; }
 
@@ -5519,9 +5666,11 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
           const bodyRows = beltGroup.map((reg) => {
             const athlete = users.find(u => u.id === reg.athleteId);
             const genderShort = athlete?.gender === 'Laki-laki' ? 'L' : 'P';
-            // Isi nilai dari raport jika sudah ada, kosongkan jika belum
+            // Isi nilai dari raport jika sudah ada, kosongkan jika belum (Task 20: dukung raport items)
             const raportData = reg.raport || {};
-            const compValues = compKeys.map(k => raportData[k] != null ? String(raportData[k]) : '');
+            const penRowMap = {};
+            getPenRows(raportData).forEach(pRow => { penRowMap[String(pRow.key)] = pRow.score; });
+            const compValues = compKeys.map(k => penRowMap[k] != null ? String(penRowMap[k]) : '');
             const totalScore = raportData.totalScore != null ? String(raportData.totalScore) : '';
             const passStatus = reg.passStatus || '';
             return [
@@ -5544,27 +5693,7 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
             styles: { fontSize: 6.5, cellPadding: 1.8, font: 'helvetica', lineColor: [200, 210, 220], lineWidth: 0.15, valign: 'middle' },
             headStyles: { fillColor: [78, 99, 109], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 5.8, halign: 'center', cellPadding: 2 },
             alternateRowStyles: { fillColor: [246, 248, 250] },
-            columnStyles: {
-              0: { halign: 'center', cellWidth: 8 },
-              1: { cellWidth: 38, fontStyle: 'bold', fontSize: 6.5 },
-              2: { cellWidth: 28 },
-              3: { halign: 'center', cellWidth: 9 },
-              // 10 komponen penilaian (index 4-13)
-              4: { halign: 'center', cellWidth: 18 },
-              5: { halign: 'center', cellWidth: 18 },
-              6: { halign: 'center', cellWidth: 18 },
-              7: { halign: 'center', cellWidth: 18 },
-              8: { halign: 'center', cellWidth: 18 },
-              9: { halign: 'center', cellWidth: 18 },
-              10: { halign: 'center', cellWidth: 18 },
-              11: { halign: 'center', cellWidth: 18 },
-              12: { halign: 'center', cellWidth: 18 },
-              13: { halign: 'center', cellWidth: 18 },
-              // Total, Status, TTD (index 14-16)
-              14: { halign: 'center', cellWidth: 14, fontStyle: 'bold' },
-              15: { halign: 'center', cellWidth: 16, fontStyle: 'bold' },
-              16: { cellWidth: 22 }
-            }
+            columnStyles: penTableColStyles(beltPenItems.length)
           });
 
           yPos = doc.lastAutoTable.finalY + 4;
@@ -5585,7 +5714,9 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
             const athlete = users.find(u => u.id === reg.athleteId);
             const genderShort = athlete?.gender === 'Laki-laki' ? 'L' : 'P';
             const raportData = reg.raport || {};
-            const compValues = compKeys.map(k => raportData[k] != null ? String(raportData[k]) : '');
+            const penRowMap = {};
+            getPenRows(raportData).forEach(pRow => { penRowMap[String(pRow.key)] = pRow.score; });
+            const compValues = compKeys.map(k => penRowMap[k] != null ? String(penRowMap[k]) : '');
             const totalScore = raportData.totalScore != null ? String(raportData.totalScore) : '';
             const passStatus = reg.passStatus || '';
             return [String(globalNo++), athlete?.name || "-", athlete?.club || "-", genderShort, ...compValues, totalScore, passStatus, ''];
@@ -5600,19 +5731,7 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
             styles: { fontSize: 6.5, cellPadding: 1.8, font: 'helvetica', lineColor: [200, 210, 220], lineWidth: 0.15, valign: 'middle' },
             headStyles: { fillColor: [78, 99, 109], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 5.8, halign: 'center', cellPadding: 2 },
             alternateRowStyles: { fillColor: [246, 248, 250] },
-            columnStyles: {
-              0: { halign: 'center', cellWidth: 8 },
-              1: { cellWidth: 38, fontStyle: 'bold', fontSize: 6.5 },
-              2: { cellWidth: 28 },
-              3: { halign: 'center', cellWidth: 9 },
-              4: { halign: 'center', cellWidth: 18 }, 5: { halign: 'center', cellWidth: 18 }, 6: { halign: 'center', cellWidth: 18 },
-              7: { halign: 'center', cellWidth: 18 }, 8: { halign: 'center', cellWidth: 18 }, 9: { halign: 'center', cellWidth: 18 },
-              10: { halign: 'center', cellWidth: 18 }, 11: { halign: 'center', cellWidth: 18 }, 12: { halign: 'center', cellWidth: 18 },
-              13: { halign: 'center', cellWidth: 18 },
-              14: { halign: 'center', cellWidth: 14, fontStyle: 'bold' },
-              15: { halign: 'center', cellWidth: 16, fontStyle: 'bold' },
-              16: { cellWidth: 22 }
-            }
+            columnStyles: penTableColStyles(compKeys.length)
           });
           yPos = doc.lastAutoTable.finalY + 4;
         }
@@ -5628,13 +5747,19 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
         doc.setFont("helvetica", "normal");
         doc.setTextColor(80, 80, 80);
         doc.setFontSize(6);
-        const legends = [
-          '1. Pukulan (Jireugi)', '2. Tangkisan (Makki)', '3. Tendangan (Chagi)', '4. Sikap Kuda-Kuda (Seogi)', '5. Jurus (Taegeuk/Poomsae)',
-          '6. Pertarungan (Kyorugi)', '7. Kekuatan Fisik & Stamina', '8. Pengetahuan Umum Taekwondo', '9. Pemecahan Papan (Kyukpa)', '10. Kerapian & Mental Spiritual (Attitude)'
-        ];
-        doc.text(legends.slice(0, 5).join('   |   '), mL + 2, yPos);
+        // Task 20: keterangan mengikuti item penilaian sabuk-sabuk yang tampil
+        const legendSeen = {};
+        const legends = [];
+        (activeBelts.length > 0 ? activeBelts : beltSequence).forEach(lBelt => {
+          getPenilaianItemsForBelt(lBelt).forEach(lIt => {
+            const lKey = String(lIt.label || '').toLowerCase();
+            if (!legendSeen[lKey]) { legendSeen[lKey] = 1; legends.push((legends.length + 1) + '. ' + lIt.label + ' (standar ' + (lIt.standarNilai || 10) + ')'); }
+          });
+        });
+        const legendHalf = Math.ceil(legends.length / 2) || 1;
+        doc.text(legends.slice(0, legendHalf).join('   |   '), mL + 2, yPos);
         yPos += 3.5;
-        doc.text(legends.slice(5).join('   |   '), mL + 2, yPos);
+        doc.text(legends.slice(legendHalf).join('   |   '), mL + 2, yPos);
 
         // ====== TANDA TANGAN ======
         yPos += 12;
@@ -5714,7 +5839,8 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
                   status: statusVerif,
                   paymentStatus: statusBayar,
                   raport: null,
-                  passStatus: null
+                  passStatus: null,
+                  registeredAt: new Date().toISOString()
                 });
                 successCount++;
               }
@@ -5725,7 +5851,7 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
         reader.readAsText(file);
       };
 
-      const visibleRegistrations = registrations.filter(reg => {
+      const visibleRegistrations = dedupeUKTRegs(registrations).filter(reg => {
         const athlete = users.find(u => u.id === reg.athleteId);
         if (!athlete) return false;
         
@@ -5902,6 +6028,7 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
                         <div>
                           <h4 className="font-extrabold text-sm text-gray-800">{athlete.name}</h4>
                           <p className="text-[10px] font-bold text-gray-500 mt-0.5">{event.title} ({athlete.club})</p>
+                          <p className="text-[9px] font-semibold text-gray-400 mt-0.5">Daftar: {formatRegDateTime(reg.registeredAt)}</p>
                         </div>
                         <span className={getBeltBadgeClass(reg.targetBelt)}>{reg.targetBelt}</span>
                       </div>
@@ -5945,7 +6072,7 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
                         {reg.status === 'confirmed' && reg.paymentStatus === 'paid' && !reg.raport && (
                           <button onClick={() => {
                             setGradingRegId(reg.id);
-                            setScorePukulan(8); setScoreTangkisan(8); setScoreTendangan(8); setScoreKudaKuda(8); setScoreTaegeuk(8); setScoreKyorugi(8); setScoreFisik(8); setScorePengetahuan(8); setScoreKyukpa(8); setScoreMental(8);
+                            const penItemsForReg = getPenilaianItemsForBelt(reg.targetBelt); setGradeItems(penItemsForReg); const penInitScores = {}; penItemsForReg.forEach(pIt => { penInitScores[pIt.id] = Math.min(8, Number(pIt.standarNilai) || 0); }); setGradeScores(penInitScores);
                             setExaminerNotes(''); setKetuaName('Panca Riatno, S.E.'); setKetuaSignature(''); setExaminerName(user.name); setExaminerSignature('');
                           }} className="w-full bg-red-600 text-white py-2 rounded-xl text-xs font-bold shadow-md mt-2">
                             Nilai Raport
@@ -5967,56 +6094,13 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
                           </div>
                           
                           <div className="grid grid-cols-2 gap-2 text-[11px] font-semibold text-gray-700">
-                            <div className="bg-white p-2 rounded-xl border">
-                              <label className="block text-[9px] uppercase text-gray-400 font-bold mb-0.5">1. Pukulan (1-10)</label>
-                              <input type="number" min="1" max="10" value={scorePukulan} onChange={e => setScorePukulan(e.target.value)} className="w-full p-1 bg-gray-50 border rounded text-xs font-bold" />
-                              <span className="text-[8px] text-gray-400 italic font-medium">{getScorePredicate(scorePukulan)}</span>
-                            </div>
-                            <div className="bg-white p-2 rounded-xl border">
-                              <label className="block text-[9px] uppercase text-gray-400 font-bold mb-0.5">2. Tangkisan (1-10)</label>
-                              <input type="number" min="1" max="10" value={scoreTangkisan} onChange={e => setScoreTangkisan(e.target.value)} className="w-full p-1 bg-gray-50 border rounded text-xs font-bold" />
-                              <span className="text-[8px] text-gray-400 italic font-medium">{getScorePredicate(scoreTangkisan)}</span>
-                            </div>
-                            <div className="bg-white p-2 rounded-xl border">
-                              <label className="block text-[9px] uppercase text-gray-400 font-bold mb-0.5">3. Tendangan (1-10)</label>
-                              <input type="number" min="1" max="10" value={scoreTendangan} onChange={e => setScoreTendangan(e.target.value)} className="w-full p-1 bg-gray-50 border rounded text-xs font-bold" />
-                              <span className="text-[8px] text-gray-400 italic font-medium">{getScorePredicate(scoreTendangan)}</span>
-                            </div>
-                            <div className="bg-white p-2 rounded-xl border">
-                              <label className="block text-[9px] uppercase text-gray-400 font-bold mb-0.5">4. Kuda-Kuda (1-10)</label>
-                              <input type="number" min="1" max="10" value={scoreKudaKuda} onChange={e => setScoreKudaKuda(e.target.value)} className="w-full p-1 bg-gray-50 border rounded text-xs font-bold" />
-                              <span className="text-[8px] text-gray-400 italic font-medium">{getScorePredicate(scoreKudaKuda)}</span>
-                            </div>
-                            <div className="bg-white p-2 rounded-xl border">
-                              <label className="block text-[9px] uppercase text-gray-400 font-bold mb-0.5">5. Taegeuk (1-10)</label>
-                              <input type="number" min="1" max="10" value={scoreTaegeuk} onChange={e => setScoreTaegeuk(e.target.value)} className="w-full p-1 bg-gray-50 border rounded text-xs font-bold" />
-                              <span className="text-[8px] text-gray-400 italic font-medium">{getScorePredicate(scoreTaegeuk)}</span>
-                            </div>
-                            <div className="bg-white p-2 rounded-xl border">
-                              <label className="block text-[9px] uppercase text-gray-400 font-bold mb-0.5">6. Kyorugi (1-10)</label>
-                              <input type="number" min="1" max="10" value={scoreKyorugi} onChange={e => setScoreKyorugi(e.target.value)} className="w-full p-1 bg-gray-50 border rounded text-xs font-bold" />
-                              <span className="text-[8px] text-gray-400 italic font-medium">{getScorePredicate(scoreKyorugi)}</span>
-                            </div>
-                            <div className="bg-white p-2 rounded-xl border">
-                              <label className="block text-[9px] uppercase text-gray-400 font-bold mb-0.5">7. Fisik (1-10)</label>
-                              <input type="number" min="1" max="10" value={scoreFisik} onChange={e => setScoreFisik(e.target.value)} className="w-full p-1 bg-gray-50 border rounded text-xs font-bold" />
-                              <span className="text-[8px] text-gray-400 italic font-medium">{getScorePredicate(scoreFisik)}</span>
-                            </div>
-                            <div className="bg-white p-2 rounded-xl border">
-                              <label className="block text-[9px] uppercase text-gray-400 font-bold mb-0.5">8. Pengetahuan (1-10)</label>
-                              <input type="number" min="1" max="10" value={scorePengetahuan} onChange={e => setScorePengetahuan(e.target.value)} className="w-full p-1 bg-gray-50 border rounded text-xs font-bold" />
-                              <span className="text-[8px] text-gray-400 italic font-medium">{getScorePredicate(scorePengetahuan)}</span>
-                            </div>
-                            <div className="bg-white p-2 rounded-xl border">
-                              <label className="block text-[9px] uppercase text-gray-400 font-bold mb-0.5">9. Kyukpa (1-10)</label>
-                              <input type="number" min="1" max="10" value={scoreKyukpa} onChange={e => setScoreKyukpa(e.target.value)} className="w-full p-1 bg-gray-50 border rounded text-xs font-bold" />
-                              <span className="text-[8px] text-gray-400 italic font-medium">{getScorePredicate(scoreKyukpa)}</span>
-                            </div>
-                            <div className="bg-white p-2 rounded-xl border">
-                              <label className="block text-[9px] uppercase text-gray-400 font-bold mb-0.5">10. Mental (1-10)</label>
-                              <input type="number" min="1" max="10" value={scoreMental} onChange={e => setScoreMental(e.target.value)} className="w-full p-1 bg-gray-50 border rounded text-xs font-bold" />
-                              <span className="text-[8px] text-gray-400 italic font-medium">{getScorePredicate(scoreMental)}</span>
-                            </div>
+                            {gradeItems.map((penItem, penIdx) => (
+                              <div key={String(penItem.id)} className="bg-white p-2 rounded-xl border">
+                                <label className="block text-[9px] uppercase text-gray-400 font-bold mb-0.5">{penIdx + 1}. {penItem.label} (maks {penItem.standarNilai})</label>
+                                <input type="number" min="0" max={penItem.standarNilai} value={Number(gradeScores[penItem.id]) || 0} onChange={e => setGradeScores(prev => ({ ...prev, [penItem.id]: Number(e.target.value) }))} className="w-full p-1 bg-gray-50 border rounded text-xs font-bold" />
+                                <span className="text-[8px] text-gray-400 italic font-medium">{getScorePredicate((Number(gradeScores[penItem.id]) || 0) * 10 / (Number(penItem.standarNilai) || 10))} &middot; standar {penItem.standarNilai}</span>
+                              </div>
+                            ))}
                           </div>
                           
                           <div className="space-y-2 border-t border-amber-300 pt-3 mt-3">
@@ -6043,8 +6127,8 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
 
                           <div className="bg-white p-3 rounded-2xl border flex justify-between items-center text-xs mt-3">
                             <div className="flex flex-col">
-                              <span className="text-gray-400 uppercase font-black text-[9px]">Skor Total:</span>
-                              <span className="text-base font-black text-gray-800">{currentTotalScore} / 100</span>
+                              <span className="text-gray-400 uppercase font-black text-[9px]">Skor Total (Lulus &ge; {passThresholdOf(gradeMaxTotal)}):</span>
+                              <span className="text-base font-black text-gray-800">{currentTotalScore} / {gradeMaxTotal}</span>
                             </div>
                             <div className="flex gap-1.5">
                               <button type="submit" className="bg-red-700 hover:bg-red-800 text-white py-2 px-4 rounded-xl font-bold text-xs shadow-md">
@@ -6166,6 +6250,8 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
                 )}
                 {selRaport && (() => {
                   const athlete = selRaport.athlete;
+                  const penRows = getPenRows(selRaport.raport);
+                  const penMaxTotal = penRows.reduce((s, r) => s + (Number(r.standar) || 0), 0) || 100;
                   return (
                     <div className="space-y-3">
                       <div className="flex justify-end gap-2 flex-wrap no-print">
@@ -6201,7 +6287,12 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
                             <h4 className="font-extrabold text-sm text-amber-800">Mode Edit Raport (Super Admin)</h4>
                           </div>
                           <div className="grid grid-cols-2 gap-3">
-                            {raportComponents.map(comp => (
+                            {Array.isArray(editRaportData.items) && editRaportData.items.length > 0 ? editRaportData.items.map((penItem, penIdx) => (
+                              <div key={String(penItem.id)} className="space-y-1">
+                                <label className="text-[10px] font-bold text-gray-600 uppercase">{penItem.label} (maks {penItem.standarNilai})</label>
+                                <input type="number" min="0" max={penItem.standarNilai} value={Number(penItem.score) || 0} onChange={e => setEditRaportData(prev => ({ ...prev, items: prev.items.map((pxi, pxj) => pxj === penIdx ? { ...pxi, score: Number(e.target.value) } : pxi) }))} className="w-full p-2 bg-white border border-amber-200 rounded-xl text-xs font-bold text-center focus:ring-2 focus:ring-amber-400 focus:outline-none" />
+                              </div>
+                            )) : raportComponents.map(comp => (
                               <div key={comp.key} className="space-y-1">
                                 <label className="text-[10px] font-bold text-gray-600 uppercase">{comp.label}</label>
                                 <input type="number" min="0" max="10" value={editRaportData[comp.key] || 0} onChange={e => setEditRaportData(prev => ({ ...prev, [comp.key]: Number(e.target.value) }))} className="w-full p-2 bg-white border border-amber-200 rounded-xl text-xs font-bold text-center focus:ring-2 focus:ring-amber-400 focus:outline-none" />
@@ -6214,7 +6305,7 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
                           </div>
                           <div className="bg-white p-3 rounded-xl border border-amber-200 flex justify-between items-center text-xs">
                             <span className="font-bold text-gray-500">Total Skor Baru:</span>
-                            <span className="font-black text-lg text-amber-700">{raportComponents.reduce((sum, comp) => sum + (Number(editRaportData[comp.key]) || 0), 0)} / 100</span>
+                            <span className="font-black text-lg text-amber-700">{Array.isArray(editRaportData.items) && editRaportData.items.length > 0 ? editRaportData.items.reduce((sum, it) => sum + (Number(it.score) || 0), 0) : raportComponents.reduce((sum, comp) => sum + (Number(editRaportData[comp.key]) || 0), 0)} / {Array.isArray(editRaportData.items) && editRaportData.items.length > 0 ? editRaportData.items.reduce((sum, it) => sum + (Number(it.standarNilai) || 0), 0) : 100}</span>
                           </div>
                           <div className="flex gap-2">
                             <button onClick={() => handleSaveEditRaportUkt(selRaport)} className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 rounded-xl font-bold text-xs shadow-md transition">Simpan Perubahan</button>
@@ -6269,21 +6360,21 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
                                 <tr className="bg-red-50 text-red-900 border-b border-gray-100 font-extrabold print:bg-gray-100 print:text-black print:border-gray-300">
                                   <th className="p-3 w-10 text-center">No</th>
                                   <th className="p-3">Komponen Penilaian</th>
-                                  <th className="p-3 text-center w-16">Skor (1-10)</th>
+                                  <th className="p-3 text-center w-16">Skor / Standar</th>
                                   <th className="p-3 text-center w-24">Predikat</th>
                                 </tr>
                               </thead>
                               <tbody className="divide-y divide-gray-100 bg-white">
-                                {raportComponents.map((comp, idx) => {
-                                  const score = selRaport.raport?.[comp.key] || 0;
+                                {penRows.map((penRow, idx) => {
+                                  const score = penRow.score;
                                   return (
-                                    <tr key={comp.key} className="hover:bg-gray-50/50 print:hover:bg-transparent">
+                                    <tr key={String(penRow.key)} className="hover:bg-gray-50/50 print:hover:bg-transparent">
                                       <td className="p-2.5 text-center font-bold text-gray-400 print:text-black">{idx + 1}</td>
-                                      <td className="p-2.5 font-bold text-gray-700 print:text-black">{comp.label}</td>
-                                      <td className="p-2.5 text-center font-extrabold text-gray-900 bg-gray-50/30 print:bg-transparent print:text-black">{score}</td>
+                                      <td className="p-2.5 font-bold text-gray-700 print:text-black">{penRow.label}</td>
+                                      <td className="p-2.5 text-center font-extrabold text-gray-900 bg-gray-50/30 print:bg-transparent print:text-black">{score}<span className="text-[8px] font-bold text-gray-400"> / {penRow.standar || 10}</span></td>
                                       <td className="p-2.5 text-center">
                                         <span className={`inline-block px-2 py-0.5 rounded-md text-[9px] font-bold ${score >= 8 ? 'bg-green-50 text-green-700 border border-green-100' : score >= 6 ? 'bg-blue-50 text-blue-700 border border-blue-100' : score >= 3 ? 'bg-yellow-50 text-yellow-700 border border-yellow-100' : 'bg-red-50 text-red-700 border border-red-100'} print:bg-transparent print:border-none print:text-black print:p-0`}>
-                                          {getScorePredicate(score)}
+                                          {getScorePredicate(score * 10 / (penRow.standar || 10))}
                                         </span>
                                       </td>
                                     </tr>
@@ -6299,7 +6390,7 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
                             <span className="text-[9px] text-gray-400 font-bold uppercase pl-0.5">Total Nilai Akumulasi</span>
                             <div className="flex items-baseline gap-1 mt-0.5">
                               <span className="text-xl font-black text-gray-800">{selRaport.raport?.totalScore || 0}</span>
-                              <span className="text-[10px] text-gray-400 font-bold">/ 100</span>
+                              <span className="text-[10px] text-gray-400 font-bold">/ {penMaxTotal}</span>
                             </div>
                           </div>
                           <div className="p-3 rounded-2xl flex flex-col justify-center items-center text-center border border-gray-100 bg-red-50/20 print:bg-transparent print:border-gray-300">
@@ -6387,6 +6478,86 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
 
                   <button type="submit" className="w-full bg-red-700 text-white py-2.5 rounded-xl font-bold text-xs shadow-md">Simpan Event UKT (DB)</button>
                 </form>
+              )}
+
+              {user.role === 'super_admin' && (
+                <div className="no-print">
+                  <button onClick={() => setShowPenilaianSettings(!showPenilaianSettings)} className="w-full bg-slate-800 hover:bg-slate-900 text-white py-2.5 rounded-2xl font-bold text-xs flex justify-center items-center gap-1.5 shadow">
+                    <Icon name="SlidersHorizontal" className="w-4 h-4 text-white" /> Pengaturan Item Penilaian UKT (Per Sabuk)
+                  </button>
+                  {showPenilaianSettings && (() => {
+                    const currentPenItems = beltPenilaianItems(penilaianBelt);
+                    const isCustomBelt = currentPenItems.length > 0;
+                    const shownPenItems = isCustomBelt ? currentPenItems : DEFAULT_PENILAIAN_ITEMS;
+                    return (
+                      <div className="bg-slate-50 p-4 rounded-3xl border border-slate-200 space-y-3 mt-3 animate-fade-in text-xs">
+                        <div className="flex items-center gap-2 pb-2 border-b border-slate-200">
+                          <Icon name="Settings2" className="w-4 h-4 text-slate-700" />
+                          <span className="font-black text-slate-800 uppercase text-[11px]">Apa yang Dinilai per Sabuk &amp; Standar Nilainya</span>
+                        </div>
+                        <div className="flex gap-2 items-center">
+                          <select value={penilaianBelt} onChange={e => { setPenilaianBelt(e.target.value); setEditingPenItemId(null); }} className="flex-1 min-w-0 p-2 bg-white border border-slate-200 rounded-xl text-xs font-bold">
+                            {beltSequence.map(b => <option key={b} value={b}>{b}</option>)}
+                          </select>
+                          <span className={`px-2 py-1 rounded-lg text-[9px] font-black border shrink-0 ${isCustomBelt ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-gray-100 text-gray-500 border-gray-200'}`}>
+                            {isCustomBelt ? ('KUSTOM: ' + currentPenItems.length + ' item') : 'BELUM DIATUR (Bawaan)'}
+                          </span>
+                        </div>
+                        <div className="bg-blue-50 border border-blue-100 text-blue-800 rounded-xl p-2.5 text-[10px] font-semibold">
+                          Item yang diatur di sini otomatis dipakai pada Formulir Nilai peserta dengan sabuk target tersebut (total maks &amp; batas lulus mengikuti jumlah standar nilai). Sabuk tanpa pengaturan memakai 10 item bawaan (standar 10 per item, total 100, lulus &ge; 51).
+                        </div>
+                        <div className="space-y-1.5 max-h-64 overflow-y-auto">
+                          {shownPenItems.map((it, pi) => (
+                            <div key={String(it.id)} className="bg-white border border-slate-200 rounded-xl p-2.5 flex justify-between items-center gap-2">
+                              {editingPenItemId === it.id ? (
+                                <div className="flex-1 flex flex-col sm:flex-row gap-1.5">
+                                  <input type="text" value={editPenLabel} onChange={e => setEditPenLabel(e.target.value)} className="flex-1 min-w-0 p-1.5 bg-gray-50 border rounded-lg text-xs font-bold" placeholder="Nama item" />
+                                  <input type="number" min="1" value={editPenStandar} onChange={e => setEditPenStandar(e.target.value)} className="sm:w-20 p-1.5 bg-gray-50 border rounded-lg text-xs font-bold text-right" title="Standar nilai (maks)" />
+                                  <button onClick={handleSaveEditPenItem} className="bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-1.5 rounded-lg font-bold text-[10px] shrink-0">Simpan</button>
+                                  <button onClick={() => setEditingPenItemId(null)} className="bg-gray-400 hover:bg-gray-500 text-white px-2 py-1.5 rounded-lg font-bold text-[10px] shrink-0">Batal</button>
+                                </div>
+                              ) : (
+                                <>
+                                  <div className="min-w-0">
+                                    <span className="block font-bold text-gray-800 truncate">{pi + 1}. {it.label}</span>
+                                    <span className="text-[9px] font-bold text-slate-500">Standar nilai: {it.standarNilai}</span>
+                                  </div>
+                                  {isCustomBelt && (
+                                    <div className="flex gap-1 shrink-0">
+                                      <button onClick={() => handleStartEditPenItem(it)} className="p-1.5 bg-amber-50 hover:bg-amber-100 text-amber-600 rounded-lg border border-amber-100" title="Edit Item"><Icon name="Pencil" className="w-3.5 h-3.5" /></button>
+                                      <button onClick={() => handleDeletePenItem(it)} className="p-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg border border-red-100" title="Hapus Item"><Icon name="Trash2" className="w-3.5 h-3.5" /></button>
+                                    </div>
+                                  )}
+                                </>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                        <div className="bg-white border border-slate-200 rounded-2xl p-3 space-y-2">
+                          <span className="block text-[10px] font-black text-slate-700 uppercase">Tambah Item Penilaian &mdash; {penilaianBelt}</span>
+                          <div className="flex flex-col sm:flex-row gap-1.5">
+                            <input type="text" placeholder="Nama item (contoh: Gerakan Dasar)" value={newItemLabel} onChange={e => setNewItemLabel(e.target.value)} className="flex-1 min-w-0 p-2 bg-gray-50 border rounded-xl text-xs" />
+                            <input type="number" min="1" placeholder="Standar" value={newItemStandar} onChange={e => setNewItemStandar(e.target.value)} className="sm:w-24 p-2 bg-gray-50 border rounded-xl text-xs font-bold text-right" title="Standar nilai (maks)" />
+                            <button onClick={handleAddPenilaianItem} className="bg-slate-800 hover:bg-slate-900 text-white px-3 py-2 rounded-xl font-bold text-[10px] flex items-center justify-center gap-1 shrink-0"><Icon name="Plus" className="w-3.5 h-3.5 text-white" /> Tambah</button>
+                          </div>
+                        </div>
+                        <div className="flex flex-col sm:flex-row gap-2">
+                          <div className="flex-1 flex gap-1.5 items-center bg-white border border-slate-200 rounded-2xl p-2">
+                            <span className="text-[9px] font-black text-slate-500 uppercase shrink-0">Salin dari:</span>
+                            <select value={copyFromBelt} onChange={e => setCopyFromBelt(e.target.value)} className="flex-1 min-w-0 p-1.5 bg-gray-50 border rounded-lg text-[10px] font-bold">
+                              <option value="">&mdash; pilih sabuk sumber &mdash;</option>
+                              {beltSequence.filter(b => b !== penilaianBelt).map(b => <option key={b} value={b}>{b}</option>)}
+                            </select>
+                            <button onClick={handleCopyPenItems} className="bg-blue-600 hover:bg-blue-700 text-white px-2.5 py-1.5 rounded-lg font-bold text-[10px] flex items-center gap-1 shrink-0"><Icon name="Copy" className="w-3.5 h-3.5 text-white" /> Salin</button>
+                          </div>
+                          {isCustomBelt && (
+                            <button onClick={handleResetPenItems} className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-2xl font-bold text-[10px] flex items-center justify-center gap-1 shrink-0"><Icon name="RotateCcw" className="w-3.5 h-3.5 text-white" /> Reset ke Bawaan</button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
               )}
 
               <div className="space-y-3">
@@ -6543,6 +6714,10 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
                             <span className={getBeltBadgeClass(myRegistration.targetBelt)}>{myRegistration.targetBelt}</span>
                           </div>
                           <div className="flex justify-between items-center">
+                            <span>Tanggal & Jam Daftar:</span>
+                            <span className="font-bold text-gray-600">{formatRegDateTime(myRegistration.registeredAt)}</span>
+                          </div>
+                          <div className="flex justify-between items-center">
                             <span>Status:</span>
                             {myRegistration.status === 'rejected' ? (
                               <span className="font-black text-red-700">DITOLAK</span>
@@ -6592,6 +6767,11 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
         { key: 'mental', label: 'Kerapian & Mental Spiritual (Attitude)' }
       ];
 
+      // Task 20: baris nilai raport - dukung raport dinamis (items) & raport lama (field tetap)
+      const rvRowsOf = (rd) => (rd && Array.isArray(rd.items) && rd.items.length > 0)
+        ? rd.items.map(it => ({ key: it.id, label: it.label, standar: Number(it.standarNilai) || 0, score: Number(it.score) || 0 }))
+        : components.map(c => ({ key: c.key, label: c.label, standar: 10, score: Number(rd && rd[c.key]) || 0 }));
+
       // --- Fitur Edit & Hapus Raport (Khusus Super Admin) ---
       const handleStartEditRaport = (raport) => {
         setEditingRaportId(raport.id);
@@ -6608,9 +6788,11 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
         const raportToUpdate = historicalRaports.find(r => r.id === editingRaportId);
         if (!raportToUpdate) return;
         
-        // Recalculate total score
-        const totalScore = components.reduce((sum, comp) => sum + (Number(editRaportData[comp.key]) || 0), 0);
-        const passStatus = totalScore >= 60 ? 'Lulus' : 'Tidak Lulus';
+        // Recalculate total score (Task 20: dukung raport dinamis "items" & raport lama)
+        const rvIsItems = Array.isArray(editRaportData.items) && editRaportData.items.length > 0;
+        const totalScore = rvIsItems ? editRaportData.items.reduce((sum, it) => sum + (Number(it.score) || 0), 0) : components.reduce((sum, comp) => sum + (Number(editRaportData[comp.key]) || 0), 0);
+        const rvMaxTotal = rvIsItems ? editRaportData.items.reduce((sum, it) => sum + (Number(it.standarNilai) || 0), 0) : 100;
+        const passStatus = rvIsItems ? (totalScore >= Math.ceil((Number(rvMaxTotal) || 0) * 0.51) ? 'Lulus' : 'Tidak Lulus') : (totalScore >= 60 ? 'Lulus' : 'Tidak Lulus');
         
         const updatedRaport = {
           ...raportToUpdate,
@@ -6753,7 +6935,12 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
                         <h4 className="font-extrabold text-sm text-amber-800">Mode Edit Raport (Super Admin)</h4>
                       </div>
                       <div className="grid grid-cols-2 gap-3">
-                        {components.map(comp => (
+                        {Array.isArray(editRaportData.items) && editRaportData.items.length > 0 ? editRaportData.items.map((penItem, penIdx) => (
+                          <div key={String(penItem.id)} className="space-y-1">
+                            <label className="text-[10px] font-bold text-gray-600 uppercase">{penItem.label} (maks {penItem.standarNilai})</label>
+                            <input type="number" min="0" max={penItem.standarNilai} value={Number(penItem.score) || 0} onChange={e => setEditRaportData(prev => ({...prev, items: prev.items.map((pxi, pxj) => pxj === penIdx ? {...pxi, score: Number(e.target.value)} : pxi)}))} className="w-full p-2 bg-white border border-amber-200 rounded-xl text-xs font-bold text-center focus:ring-2 focus:ring-amber-400 focus:outline-none" />
+                          </div>
+                        )) : components.map(comp => (
                           <div key={comp.key} className="space-y-1">
                             <label className="text-[10px] font-bold text-gray-600 uppercase">{comp.label}</label>
                             <input type="number" min="0" max="10" value={editRaportData[comp.key] || 0} onChange={e => setEditRaportData(prev => ({...prev, [comp.key]: Number(e.target.value)}))} className="w-full p-2 bg-white border border-amber-200 rounded-xl text-xs font-bold text-center focus:ring-2 focus:ring-amber-400 focus:outline-none" />
@@ -6766,7 +6953,7 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
                       </div>
                       <div className="bg-white p-3 rounded-xl border border-amber-200 flex justify-between items-center text-xs">
                         <span className="font-bold text-gray-500">Total Skor Baru:</span>
-                        <span className="font-black text-lg text-amber-700">{components.reduce((sum, comp) => sum + (Number(editRaportData[comp.key]) || 0), 0)} / 100</span>
+                        <span className="font-black text-lg text-amber-700">{Array.isArray(editRaportData.items) && editRaportData.items.length > 0 ? editRaportData.items.reduce((sum, it) => sum + (Number(it.score) || 0), 0) : components.reduce((sum, comp) => sum + (Number(editRaportData[comp.key]) || 0), 0)} / {Array.isArray(editRaportData.items) && editRaportData.items.length > 0 ? editRaportData.items.reduce((sum, it) => sum + (Number(it.standarNilai) || 0), 0) : 100}</span>
                       </div>
                       <div className="flex gap-2">
                         <button onClick={handleSaveEditRaport} className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 rounded-xl font-bold text-xs shadow-md transition">Simpan Perubahan</button>
@@ -6826,21 +7013,21 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
                             <tr className="bg-red-50 text-red-900 border-b border-gray-100 font-extrabold print:bg-gray-100 print:text-black print:border-gray-300">
                               <th className="p-3 w-10 text-center">No</th>
                               <th className="p-3">Komponen Penilaian</th>
-                              <th className="p-3 text-center w-16">Skor (1-10)</th>
+                              <th className="p-3 text-center w-16">Skor / Standar</th>
                               <th className="p-3 text-center w-24">Predikat</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-gray-100 bg-white">
-                            {components.map((comp, idx) => {
-                              const score = activePeriodRaport.raport?.[comp.key] || 0;
+                            {rvRowsOf(activePeriodRaport.raport).map((penRow, idx) => {
+                              const score = penRow.score;
                               return (
-                                <tr key={comp.key} className="hover:bg-gray-50/50 print:hover:bg-transparent">
+                                <tr key={String(penRow.key)} className="hover:bg-gray-50/50 print:hover:bg-transparent">
                                   <td className="p-2.5 text-center font-bold text-gray-400 print:text-black">{idx + 1}</td>
-                                  <td className="p-2.5 font-bold text-gray-700 print:text-black">{comp.label}</td>
-                                  <td className="p-2.5 text-center font-extrabold text-gray-900 bg-gray-50/30 print:bg-transparent print:text-black">{score}</td>
+                                  <td className="p-2.5 font-bold text-gray-700 print:text-black">{penRow.label}</td>
+                                  <td className="p-2.5 text-center font-extrabold text-gray-900 bg-gray-50/30 print:bg-transparent print:text-black">{score}<span className="text-[8px] font-bold text-gray-400"> / {penRow.standar || 10}</span></td>
                                   <td className="p-2.5 text-center">
                                     <span className={`inline-block px-2 py-0.5 rounded-md text-[9px] font-bold ${score >= 8 ? 'bg-green-50 text-green-700 border border-green-100' : score >= 6 ? 'bg-blue-50 text-blue-700 border border-blue-100' : score >= 3 ? 'bg-yellow-50 text-yellow-700 border border-yellow-100' : 'bg-red-50 text-red-700 border border-red-100'} print:bg-transparent print:border-none print:text-black print:p-0`}>
-                                      {getScorePredicate(score)}
+                                      {getScorePredicate(score * 10 / (penRow.standar || 10))}
                                     </span>
                                   </td>
                                 </tr>
@@ -6857,7 +7044,7 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
                         <span className="text-[9px] text-gray-400 font-bold uppercase pl-0.5">Total Nilai Akumulasi</span>
                         <div className="flex items-baseline gap-1 mt-0.5">
                           <span className="text-xl font-black text-gray-800">{activePeriodRaport.raport.totalScore}</span>
-                          <span className="text-[10px] text-gray-400 font-bold">/ 100</span>
+                          <span className="text-[10px] text-gray-400 font-bold">/ {rvRowsOf(activePeriodRaport.raport).reduce((s, r) => s + (Number(r.standar) || 0), 0) || 100}</span>
                         </div>
                       </div>
                       <div className="p-3 rounded-2xl flex flex-col justify-center items-center text-center border border-gray-100 bg-red-50/20 print:bg-transparent print:border-gray-300">
