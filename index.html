@@ -3296,6 +3296,8 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
       const [historicalRaports, addRaport, updateRaport, deleteRaport] = useDbCollection('historicalRaports', initialHistoricalRaports, authUser);
       // Task 20: item penilaian UKT per sabuk (pengaturan super admin, tersimpan cloud)
       const [uktPenilaianItems, addUktPenilaianItem, updateUktPenilaianItem, deleteUktPenilaianItem] = useDbCollection('uktPenilaianItems', [], authUser);
+      // Task 22: predikat nilai per sabuk (SB/B/KB/TB bawaan, bisa dikustom per sabuk)
+      const [uktPenilaianPredikat, addUktPenilaianPredikat, updateUktPenilaianPredikat, deleteUktPenilaianPredikat] = useDbCollection('uktPenilaianPredikat', [], authUser);
       const [clubsData, addClub, updateClub, deleteClub] = useDbCollection('clubs', initialClubs, authUser);
       const [attendances, addAttendance, updateAttendance, deleteAttendance] = useDbCollection('attendances', initialAttendances, authUser);
       const [sppBills, addSppBill, updateSppBill, deleteSppBill] = useDbCollection('sppBills', initialSppBills, authUser);
@@ -3382,7 +3384,7 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
         const allDataPayload = {
           users, clubsData, uktEvents, championships, articles,
           uktRegistrations, champRegistrations, athletePoints,
-          historicalRaports, uktPenilaianItems, attendances, sppBills, sppPayments, sanctions, physicalTests, physicalNorms, customTestTypes, featureSettings
+          historicalRaports, uktPenilaianItems, uktPenilaianPredikat, attendances, sppBills, sppPayments, sanctions, physicalTests, physicalNorms, customTestTypes, featureSettings
         };
         const blob = new Blob([JSON.stringify(allDataPayload, null, 2)], { type: 'application/json' });
         window.__universalSaveBlob(blob, `Backup_Full_Sistem_TIMura_${new Date().toISOString().split('T')[0]}.json`);
@@ -3407,6 +3409,7 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
             if(parsed.athletePoints) { parsed.athletePoints.forEach(item => {addPoint(item); count++;}); }
             if(parsed.historicalRaports) { parsed.historicalRaports.forEach(item => {addRaport(item); count++;}); }
             if(parsed.uktPenilaianItems) { parsed.uktPenilaianItems.forEach(item => {addUktPenilaianItem(item); count++;}); }
+            if(parsed.uktPenilaianPredikat) { parsed.uktPenilaianPredikat.forEach(item => {addUktPenilaianPredikat(item); count++;}); }
             if(parsed.attendances) { parsed.attendances.forEach(item => {addAttendance(item); count++;}); }
             if(parsed.sppBills) { parsed.sppBills.forEach(item => {addSppBill(item); count++;}); }
             if(parsed.sppPayments) { parsed.sppPayments.forEach(item => {addSppPayment(item); count++;}); }
@@ -3467,7 +3470,7 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
             if (!isFeatureAllowed(activeUser.role, 'ukt')) {
               return <div className="text-center py-10 font-bold text-gray-400">Anda tidak diizinkan mengakses modul UKT.</div>;
             }
-            return <UKTView user={activeUser} events={uktEvents} addUktEvent={addUktEvent} updateUktEvent={updateUktEvent} deleteUktEvent={deleteUktEvent} registrations={uktRegistrations} addUktReg={addUktReg} updateUktReg={updateUktReg} users={users} updateUser={updateUser} points={athletePoints} addPoint={addPoint} historicalRaports={historicalRaports} addRaport={addRaport} updateRaport={updateRaport} deleteRaport={deleteRaport} triggerToast={triggerToast} poinRules={poinRules} penilaianItems={uktPenilaianItems} addPenilaianItem={addUktPenilaianItem} updatePenilaianItem={updateUktPenilaianItem} deletePenilaianItem={deleteUktPenilaianItem} />;
+            return <UKTView user={activeUser} events={uktEvents} addUktEvent={addUktEvent} updateUktEvent={updateUktEvent} deleteUktEvent={deleteUktEvent} registrations={uktRegistrations} addUktReg={addUktReg} updateUktReg={updateUktReg} users={users} updateUser={updateUser} points={athletePoints} addPoint={addPoint} updatePoint={updatePoint} historicalRaports={historicalRaports} addRaport={addRaport} updateRaport={updateRaport} deleteRaport={deleteRaport} triggerToast={triggerToast} poinRules={poinRules} penilaianItems={uktPenilaianItems} addPenilaianItem={addUktPenilaianItem} updatePenilaianItem={updateUktPenilaianItem} deletePenilaianItem={deleteUktPenilaianItem} penilaianPredikat={uktPenilaianPredikat} addPenilaianPredikat={addUktPenilaianPredikat} updatePenilaianPredikat={updateUktPenilaianPredikat} deletePenilaianPredikat={deleteUktPenilaianPredikat} />;
           
           case 'kejuaraan': 
             if (!isFeatureAllowed(activeUser.role, 'kejuaraan')) {
@@ -4723,7 +4726,7 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
       );
     }
 
-    function UKTView({ user, events, addUktEvent, updateUktEvent, deleteUktEvent, registrations, addUktReg, updateUktReg, users, updateUser, points, addPoint, historicalRaports, addRaport, updateRaport, deleteRaport, triggerToast, poinRules, penilaianItems = [], addPenilaianItem, updatePenilaianItem, deletePenilaianItem }) {
+    function UKTView({ user, events, addUktEvent, updateUktEvent, deleteUktEvent, registrations, addUktReg, updateUktReg, users, updateUser, points, addPoint, updatePoint, historicalRaports, addRaport, updateRaport, deleteRaport, triggerToast, poinRules, penilaianItems = [], addPenilaianItem, updatePenilaianItem, deletePenilaianItem, penilaianPredikat = [], addPenilaianPredikat, updatePenilaianPredikat, deletePenilaianPredikat }) {
       const [activeTab, setActiveTab] = useState('daftar');
       const uktPoinMengikuti = poinRules && poinRules.ukt_mengikuti !== undefined ? poinRules.ukt_mengikuti : 3;
       const uktPoinLulus = poinRules && poinRules.ukt_lulus !== undefined ? poinRules.ukt_lulus : 5; 
@@ -4749,6 +4752,8 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
       const formatRegDateTime = (iso) => { if (!iso) return '-'; const d = new Date(iso); if (isNaN(d.getTime())) return '-'; const p2 = (n) => String(n).padStart(2, '0'); return p2(d.getDate()) + '/' + p2(d.getMonth() + 1) + '/' + d.getFullYear() + ' ' + p2(d.getHours()) + ':' + p2(d.getMinutes()); };
       // Format ringkas utk PDF: "19/09/26 14:35"
       const formatRegDateTimeShort = (iso) => { if (!iso) return '-'; const f = formatRegDateTime(iso); if (f === '-') return '-'; const pr = f.split(' '); const dp = pr[0].split('/'); return dp[0] + '/' + dp[1] + '/' + dp[2].slice(2) + ' ' + pr[1]; };
+      // Fallback: pendaftaran lama (pra-registeredAt) memakai ID epoch-ms sebagai sumber tanggal daftar
+      const regRegisteredAt = (r) => { if (r && r.registeredAt) return r.registeredAt; const n = r ? Number(r.id) : NaN; return (n && isFinite(n) && n > 999999999999) ? new Date(n).toISOString() : null; };
       // ANTI-GANDA tampilan: satu akun hanya tampil satu kali per pelaksanaan.
       // Prioritas dokumen yang dipertahankan: yang sudah punya raport, lalu yang terbaru.
       const dedupeUKTRegs = (regs) => {
@@ -4830,6 +4835,42 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
         : raportComponents.map(c => ({ key: c.key, label: c.label, standar: 10, score: Number(rd && rd[c.key]) || 0 }));
       // Batas lulus proporsional: 51% dari total standar (bawaan 10x10=100 -> 51)
       const passThresholdOf = (maxTotal) => Math.ceil((Number(maxTotal) || 0) * 0.51);
+
+      // =====================================================================
+      // Task 22: PREDIKAT NILAI per sabuk (skala 0-10)
+      // Bawaan: SB >= 8, B >= 6, KB >= 3, sisanya TB (mengikuti getScorePredicate lama)
+      // =====================================================================
+      const DEFAULT_PENILAIAN_PREDIKAT = [
+        { id: 'pred_sb', label: 'SB (Sangat Bisa)', minVal: 8 },
+        { id: 'pred_b', label: 'B (Bisa)', minVal: 6 },
+        { id: 'pred_kb', label: 'KB (Kurang Bisa)', minVal: 3 },
+        { id: 'pred_tb', label: 'TB (Tidak Bisa)', minVal: 0 }
+      ];
+      // Predikat kustom mentah suatu sabuk (diurutkan ambang tertinggi -> terendah)
+      const rawPredikatForBelt = (belt) => (penilaianPredikat || []).filter(p => p.sabuk === belt).sort((a, b) => ((Number(b.minVal) || 0) - (Number(a.minVal) || 0)) || ((a.id || 0) - (b.id || 0)));
+      const beltPredikatItems = rawPredikatForBelt;
+      // Predikat suatu sabuk: kustom dari cloud, atau bawaan bila belum diatur
+      const getPredikatForBelt = (belt) => { const custom = rawPredikatForBelt(belt); return custom.length > 0 ? custom : DEFAULT_PENILAIAN_PREDIKAT; };
+      // Label predikat untuk nilai (skala 0-10) pada sabuk tertentu
+      const getScorePredicateFor = (belt, score) => {
+        const val = Number(score);
+        if (!Number.isFinite(val)) return getScorePredicate(val);
+        const list = getPredikatForBelt(belt);
+        if (!list || list.length === 0) return getScorePredicate(val);
+        let best = list[list.length - 1];
+        for (let i = 0; i < list.length; i++) { if (val >= (Number(list[i].minVal) || 0)) { best = list[i]; break; } }
+        return String(best.label || getScorePredicate(val));
+      };
+      // Urutan rank predikat (0 = terbaik) untuk pewarnaan badge
+      const predRankIndexFor = (belt, score) => {
+        const val = Number(score);
+        const list = getPredikatForBelt(belt);
+        if (!list || list.length === 0) return -1;
+        for (let i = 0; i < list.length; i++) { if (val >= (Number(list[i].minVal) || 0)) return i; }
+        return list.length - 1;
+      };
+      const PRED_BADGE_CLASSES = ['bg-green-50 text-green-700 border border-green-100', 'bg-blue-50 text-blue-700 border border-blue-100', 'bg-yellow-50 text-yellow-700 border border-yellow-100', 'bg-red-50 text-red-700 border border-red-100'];
+      const predBadgeClassFor = (belt, score) => { const idx = predRankIndexFor(belt, score); return PRED_BADGE_CLASSES[idx >= 0 ? Math.min(idx, PRED_BADGE_CLASSES.length - 1) : PRED_BADGE_CLASSES.length - 1]; };
 
       // Edit & hapus raport dari section Pelaksanaan (khusus Super Admin)
       const handleSaveEditRaportUkt = (raport) => {
@@ -4933,7 +4974,7 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
             alternateRowStyles: { fillColor: [249, 250, 251] },
             columnStyles: {
               0: { halign: 'center', cellWidth: 10 },
-              1: { cellWidth: 55 },
+              1: {},
               2: { cellWidth: 50 },
               3: { halign: 'center', cellWidth: 20, fontStyle: 'bold' },
               4: { halign: 'center', cellWidth: 22 }
@@ -4998,6 +5039,12 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
       const [editPenLabel, setEditPenLabel] = useState('');
       const [editPenStandar, setEditPenStandar] = useState(10);
       const [copyFromBelt, setCopyFromBelt] = useState('');
+      // ===== Task 22: state Predikat Nilai (per sabuk) =====
+      const [newPredLabel, setNewPredLabel] = useState('');
+      const [newPredMin, setNewPredMin] = useState(5);
+      const [editingPredId, setEditingPredId] = useState(null);
+      const [editPredLabel, setEditPredLabel] = useState('');
+      const [editPredMin, setEditPredMin] = useState(0);
       // ===== Task 20: skor dinamis mengikuti item penilaian sabuk target =====
       const [gradeItems, setGradeItems] = useState(DEFAULT_PENILAIAN_ITEMS);
       const [gradeScores, setGradeScores] = useState({});
@@ -5024,7 +5071,16 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
         setNewItemLabel(''); setNewItemStandar(10);
         triggerToast('Item "' + label + '" ditambahkan untuk ' + penilaianBelt + '!');
       };
-      const handleStartEditPenItem = (it) => { setEditingPenItemId(it.id); setEditPenLabel(it.label || ''); setEditPenStandar(it.standarNilai || 10); };
+      const handleStartEditPenItem = (it) => {
+        // Task 22: sabuk yang masih memakai item bawaan otomatis diaktifkan sebagai kustom (clone bawaan) saat edit pertama
+        let targetId = it.id;
+        if (beltPenilaianItems(penilaianBelt).length === 0) {
+          const base = Date.now();
+          DEFAULT_PENILAIAN_ITEMS.forEach((d, i) => { addPenilaianItem({ id: base + i + 1, sabuk: penilaianBelt, label: d.label, standarNilai: Number(d.standarNilai) || 10, urutan: i + 1 }); if (d.id === it.id) targetId = base + i + 1; });
+          triggerToast('Sabuk ini masih memakai item bawaan - otomatis diaktifkan sebagai kustom. Silakan edit itemnya.', 'success');
+        }
+        setEditingPenItemId(targetId); setEditPenLabel(it.label || ''); setEditPenStandar(it.standarNilai || 10);
+      };
       const handleSaveEditPenItem = () => {
         const it = beltPenilaianItems(penilaianBelt).find(x => x.id === editingPenItemId);
         if (!it) { setEditingPenItemId(null); return; }
@@ -5037,6 +5093,14 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
         triggerToast('Item penilaian berhasil diperbarui!');
       };
       const handleDeletePenItem = (it) => {
+        // Task 22: sabuk bawaan otomatis jadi kustom dengan menyalin bawaan KECUALI item yang dihapus
+        if (beltPenilaianItems(penilaianBelt).length === 0) {
+          if (!window.confirm('Aktifkan pengaturan kustom untuk ' + penilaianBelt + ' tanpa item "' + it.label + '"? Item bawaan lain akan disalin.')) return;
+          const base = Date.now(); let nCloned = 0;
+          DEFAULT_PENILAIAN_ITEMS.forEach((d, i) => { if (d.id === it.id) return; addPenilaianItem({ id: base + i + 1, sabuk: penilaianBelt, label: d.label, standarNilai: Number(d.standarNilai) || 10, urutan: nCloned + 1 }); nCloned++; });
+          triggerToast('Item "' + it.label + '" dihapus dari ' + penilaianBelt + ' (' + nCloned + ' item bawaan disalin sebagai kustom)!');
+          return;
+        }
         if (!window.confirm('Hapus item penilaian "' + it.label + '" dari ' + it.sabuk + '?')) return;
         deletePenilaianItem(it.id);
         if (editingPenItemId === it.id) setEditingPenItemId(null);
@@ -5057,6 +5121,72 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
         cur.forEach(it => deletePenilaianItem(it.id));
         setEditingPenItemId(null);
         triggerToast('Item penilaian ' + penilaianBelt + ' direset ke bawaan (10 item standar)!');
+      };
+      // ===== Task 22: handler CRUD Predikat Nilai per sabuk (Super Admin) =====
+      const cloneDefaultPredikatForBelt = () => {
+        const base = Date.now();
+        const idMap = {};
+        DEFAULT_PENILAIAN_PREDIKAT.forEach((d, i) => { const nid = base + i + 1; idMap[d.id] = nid; addPenilaianPredikat({ id: nid, sabuk: penilaianBelt, label: d.label, minVal: Number(d.minVal) || 0, urutan: i + 1 }); });
+        return idMap;
+      };
+      const handleStartEditPredikat = (pred) => {
+        let targetId = pred.id;
+        if (beltPredikatItems(penilaianBelt).length === 0) {
+          const idMap = cloneDefaultPredikatForBelt();
+          targetId = idMap[pred.id] || pred.id;
+          triggerToast('Predikat bawaan diaktifkan sebagai kustom untuk ' + penilaianBelt + '. Silakan edit.', 'success');
+        }
+        setEditingPredId(targetId); setEditPredLabel(pred.label || ''); setEditPredMin(Number(pred.minVal) || 0);
+      };
+      const handleSaveEditPredikat = () => {
+        const label = String(editPredLabel || '').trim();
+        if (!label) { triggerToast('Nama predikat wajib diisi!', 'error'); return; }
+        const minVal = Number(editPredMin);
+        if (!Number.isFinite(minVal) || minVal < 0 || minVal > 10) { triggerToast('Ambang predikat harus angka 0 sampai 10!', 'error'); return; }
+        const cur = beltPredikatItems(penilaianBelt);
+        if (cur.some(p => p.id !== editingPredId && (Number(p.minVal) || 0) === minVal)) { triggerToast('Ada predikat lain dengan ambang yang sama. Gunakan ambang berbeda!', 'error'); return; }
+        const pred = cur.find(p => p.id === editingPredId);
+        if (pred) updatePenilaianPredikat(pred.id, { ...pred, label: label, minVal: minVal });
+        else updatePenilaianPredikat(editingPredId, { id: editingPredId, sabuk: penilaianBelt, label: label, minVal: minVal, urutan: cur.length + 1 });
+        setEditingPredId(null);
+        triggerToast('Predikat "' + label + '" berhasil diperbarui!');
+      };
+      const handleDeletePredikat = (pred) => {
+        if (beltPredikatItems(penilaianBelt).length === 0) {
+          // sabuk masih bawaan: aktifkan kustom dengan menyalin bawaan KECUALI predikat ini
+          const base = Date.now(); let nCloned = 0;
+          DEFAULT_PENILAIAN_PREDIKAT.forEach((d, i) => { if (d.id === pred.id) return; addPenilaianPredikat({ id: base + i + 1, sabuk: penilaianBelt, label: d.label, minVal: Number(d.minVal) || 0, urutan: nCloned + 1 }); nCloned++; });
+          if (editingPredId === pred.id) setEditingPredId(null);
+          triggerToast('Predikat "' + pred.label + '" dihapus (' + nCloned + ' predikat bawaan disalin sebagai kustom)!');
+          return;
+        }
+        if (!window.confirm('Hapus predikat "' + pred.label + '" dari ' + penilaianBelt + '?')) return;
+        deletePenilaianPredikat(pred.id);
+        if (editingPredId === pred.id) setEditingPredId(null);
+        triggerToast('Predikat "' + pred.label + '" berhasil dihapus!');
+      };
+      const handleAddPredikat = () => {
+        const label = String(newPredLabel || '').trim();
+        if (!label) { triggerToast('Nama predikat wajib diisi!', 'error'); return; }
+        const minVal = Number(newPredMin);
+        if (!Number.isFinite(minVal) || minVal < 0 || minVal > 10) { triggerToast('Ambang predikat harus angka 0 sampai 10!', 'error'); return; }
+        const hasCustom = beltPredikatItems(penilaianBelt).length > 0;
+        const cur = hasCustom ? beltPredikatItems(penilaianBelt) : DEFAULT_PENILAIAN_PREDIKAT;
+        if (cur.some(p => String(p.label || '').toLowerCase() === label.toLowerCase())) { triggerToast('Predikat dengan nama itu sudah ada!', 'error'); return; }
+        if (cur.some(p => (Number(p.minVal) || 0) === minVal)) { triggerToast('Ada predikat dengan ambang yang sama. Gunakan ambang berbeda!', 'error'); return; }
+        if (cur.length >= 8) { triggerToast('Maksimal 8 predikat nilai per sabuk!', 'error'); return; }
+        if (!hasCustom) cloneDefaultPredikatForBelt();
+        addPenilaianPredikat({ id: Date.now() + 501, sabuk: penilaianBelt, label: label, minVal: minVal, urutan: cur.length + 1 });
+        setNewPredLabel(''); setNewPredMin(5);
+        triggerToast('Predikat "' + label + '" ditambahkan untuk ' + penilaianBelt + '!');
+      };
+      const handleResetPredikat = () => {
+        const cur = beltPredikatItems(penilaianBelt);
+        if (cur.length === 0) return;
+        if (!window.confirm('Reset predikat ' + penilaianBelt + ' ke bawaan? ' + cur.length + ' predikat kustom akan dihapus.')) return;
+        cur.forEach(p => deletePenilaianPredikat(p.id));
+        setEditingPredId(null);
+        triggerToast('Predikat ' + penilaianBelt + ' direset ke bawaan (SB/B/KB/TB)!');
       };
       
       const handleImageUpload = (e, setter) => {
@@ -5210,7 +5340,7 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
             `"${(event ? event.title : '-').replace(/"/g, '""')}"`, 
             `"${reg.status === 'confirmed' ? 'LAYAK (DIKONFIRMASI)' : 'MENUNGGU'}"`,
             `"${reg.paymentStatus === 'paid' ? 'LUNAS' : 'PENDING'}"`,
-            `"${formatRegDateTime(reg.registeredAt)}"`
+            `"${formatRegDateTime(regRegisteredAt(reg))}"`
           ];
         }).filter(Boolean);
 
@@ -5413,7 +5543,7 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
               athlete?.club || "-",
               reg.status === 'confirmed' ? 'Layak' : reg.status === 'rejected' ? 'Ditolak' : 'Menunggu',
               reg.paymentStatus === 'paid' ? 'Lunas' : 'Pending',
-              formatRegDateTimeShort(reg.registeredAt)
+              formatRegDateTimeShort(regRegisteredAt(reg))
             ];
           });
 
@@ -5427,7 +5557,7 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
             alternateRowStyles: { fillColor: [249, 250, 251] },
             columnStyles: {
               0: { halign: 'center', cellWidth: 6 },
-              1: { cellWidth: 30 },
+              1: {},
               2: { cellWidth: 16, fontSize: 5.8 },
               3: { cellWidth: 15, fontSize: 5.8 },
               4: { cellWidth: 16, fontSize: 5.8 },
@@ -5465,7 +5595,7 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
               athlete?.club || "-",
               reg.status === 'confirmed' ? 'Layak' : 'Menunggu',
               reg.paymentStatus === 'paid' ? 'Lunas' : 'Pending',
-              formatRegDateTimeShort(reg.registeredAt)
+              formatRegDateTimeShort(regRegisteredAt(reg))
             ];
           });
 
@@ -5479,7 +5609,7 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
             alternateRowStyles: { fillColor: [249, 250, 251] },
             columnStyles: {
               0: { halign: 'center', cellWidth: 6 },
-              1: { cellWidth: 30 },
+              1: {},
               2: { cellWidth: 16, fontSize: 5.8 },
               3: { cellWidth: 15, fontSize: 5.8 },
               4: { cellWidth: 16, fontSize: 5.8 },
@@ -5631,7 +5761,7 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
         const penTableColStyles = (nComp) => {
           const fixedBefore = 8 + 38 + 28 + 9;
           const fixedAfter = 14 + 16 + 22;
-          const compW = Math.max(7, Math.min(18, Math.floor((cW - fixedBefore - fixedAfter) / Math.max(1, nComp))));
+          const compW = Math.max(7, (cW - fixedBefore - fixedAfter) / Math.max(1, nComp));
           const cs = { 0: { halign: 'center', cellWidth: 8 }, 1: { cellWidth: 38, fontStyle: 'bold', fontSize: 6.5 }, 2: { cellWidth: 28 }, 3: { halign: 'center', cellWidth: 9 } };
           for (let ci = 0; ci < nComp; ci++) cs[4 + ci] = { halign: 'center', cellWidth: compW };
           cs[4 + nComp] = { halign: 'center', cellWidth: 14, fontStyle: 'bold' };
@@ -6028,7 +6158,7 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
                         <div>
                           <h4 className="font-extrabold text-sm text-gray-800">{athlete.name}</h4>
                           <p className="text-[10px] font-bold text-gray-500 mt-0.5">{event.title} ({athlete.club})</p>
-                          <p className="text-[9px] font-semibold text-gray-400 mt-0.5">Daftar: {formatRegDateTime(reg.registeredAt)}</p>
+                          <p className="text-[9px] font-semibold text-gray-400 mt-0.5">Daftar: {formatRegDateTime(regRegisteredAt(reg))}</p>
                         </div>
                         <span className={getBeltBadgeClass(reg.targetBelt)}>{reg.targetBelt}</span>
                       </div>
@@ -6098,7 +6228,7 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
                               <div key={String(penItem.id)} className="bg-white p-2 rounded-xl border">
                                 <label className="block text-[9px] uppercase text-gray-400 font-bold mb-0.5">{penIdx + 1}. {penItem.label} (maks {penItem.standarNilai})</label>
                                 <input type="number" min="0" max={penItem.standarNilai} value={Number(gradeScores[penItem.id]) || 0} onChange={e => setGradeScores(prev => ({ ...prev, [penItem.id]: Number(e.target.value) }))} className="w-full p-1 bg-gray-50 border rounded text-xs font-bold" />
-                                <span className="text-[8px] text-gray-400 italic font-medium">{getScorePredicate((Number(gradeScores[penItem.id]) || 0) * 10 / (Number(penItem.standarNilai) || 10))} &middot; standar {penItem.standarNilai}</span>
+                                <span className="text-[8px] text-gray-400 italic font-medium">{getScorePredicateFor(reg.targetBelt, (Number(gradeScores[penItem.id]) || 0) * 10 / (Number(penItem.standarNilai) || 10))} &middot; standar {penItem.standarNilai}</span>
                               </div>
                             ))}
                           </div>
@@ -6373,8 +6503,8 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
                                       <td className="p-2.5 font-bold text-gray-700 print:text-black">{penRow.label}</td>
                                       <td className="p-2.5 text-center font-extrabold text-gray-900 bg-gray-50/30 print:bg-transparent print:text-black">{score}<span className="text-[8px] font-bold text-gray-400"> / {penRow.standar || 10}</span></td>
                                       <td className="p-2.5 text-center">
-                                        <span className={`inline-block px-2 py-0.5 rounded-md text-[9px] font-bold ${score >= 8 ? 'bg-green-50 text-green-700 border border-green-100' : score >= 6 ? 'bg-blue-50 text-blue-700 border border-blue-100' : score >= 3 ? 'bg-yellow-50 text-yellow-700 border border-yellow-100' : 'bg-red-50 text-red-700 border border-red-100'} print:bg-transparent print:border-none print:text-black print:p-0`}>
-                                          {getScorePredicate(score * 10 / (penRow.standar || 10))}
+                                        <span className={`inline-block px-2 py-0.5 rounded-md text-[9px] font-bold ${predBadgeClassFor(selRaport.targetBelt, score * 10 / (penRow.standar || 10))} print:bg-transparent print:border-none print:text-black print:p-0`}>
+                                          {getScorePredicateFor(selRaport.targetBelt, score * 10 / (penRow.standar || 10))}
                                         </span>
                                       </td>
                                     </tr>
@@ -6489,6 +6619,9 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
                     const currentPenItems = beltPenilaianItems(penilaianBelt);
                     const isCustomBelt = currentPenItems.length > 0;
                     const shownPenItems = isCustomBelt ? currentPenItems : DEFAULT_PENILAIAN_ITEMS;
+                    const currentPreds = beltPredikatItems(penilaianBelt);
+                    const hasCustomPred = currentPreds.length > 0;
+                    const shownPreds = hasCustomPred ? currentPreds : DEFAULT_PENILAIAN_PREDIKAT;
                     return (
                       <div className="bg-slate-50 p-4 rounded-3xl border border-slate-200 space-y-3 mt-3 animate-fade-in text-xs">
                         <div className="flex items-center gap-2 pb-2 border-b border-slate-200">
@@ -6504,7 +6637,7 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
                           </span>
                         </div>
                         <div className="bg-blue-50 border border-blue-100 text-blue-800 rounded-xl p-2.5 text-[10px] font-semibold">
-                          Item yang diatur di sini otomatis dipakai pada Formulir Nilai peserta dengan sabuk target tersebut (total maks &amp; batas lulus mengikuti jumlah standar nilai). Sabuk tanpa pengaturan memakai 10 item bawaan (standar 10 per item, total 100, lulus &ge; 51).
+                          Item &amp; predikat di sini otomatis dipakai pada Formulir Nilai peserta dengan sabuk target tersebut (total maks &amp; batas lulus mengikuti jumlah standar nilai). Semua item bisa diedit/dihapus &mdash; pada sabuk yang masih bawaan, edit/hapus pertama otomatis mengaktifkan mode kustom (menyalin bawaan). Predikat nilai (skala 0&ndash;10) juga bisa ditambah, diedit, dan dihapus per sabuk di bagian bawah.
                         </div>
                         <div className="space-y-1.5 max-h-64 overflow-y-auto">
                           {shownPenItems.map((it, pi) => (
@@ -6522,12 +6655,10 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
                                     <span className="block font-bold text-gray-800 truncate">{pi + 1}. {it.label}</span>
                                     <span className="text-[9px] font-bold text-slate-500">Standar nilai: {it.standarNilai}</span>
                                   </div>
-                                  {isCustomBelt && (
-                                    <div className="flex gap-1 shrink-0">
-                                      <button onClick={() => handleStartEditPenItem(it)} className="p-1.5 bg-amber-50 hover:bg-amber-100 text-amber-600 rounded-lg border border-amber-100" title="Edit Item"><Icon name="Pencil" className="w-3.5 h-3.5" /></button>
-                                      <button onClick={() => handleDeletePenItem(it)} className="p-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg border border-red-100" title="Hapus Item"><Icon name="Trash2" className="w-3.5 h-3.5" /></button>
-                                    </div>
-                                  )}
+                                  <div className="flex gap-1 shrink-0">
+                                    <button onClick={() => handleStartEditPenItem(it)} className="p-1.5 bg-amber-50 hover:bg-amber-100 text-amber-600 rounded-lg border border-amber-100" title="Edit Item"><Icon name="Pencil" className="w-3.5 h-3.5" /></button>
+                                    <button onClick={() => handleDeletePenItem(it)} className="p-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg border border-red-100" title="Hapus Item"><Icon name="Trash2" className="w-3.5 h-3.5" /></button>
+                                  </div>
                                 </>
                               )}
                             </div>
@@ -6539,6 +6670,46 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
                             <input type="text" placeholder="Nama item (contoh: Gerakan Dasar)" value={newItemLabel} onChange={e => setNewItemLabel(e.target.value)} className="flex-1 min-w-0 p-2 bg-gray-50 border rounded-xl text-xs" />
                             <input type="number" min="1" placeholder="Standar" value={newItemStandar} onChange={e => setNewItemStandar(e.target.value)} className="sm:w-24 p-2 bg-gray-50 border rounded-xl text-xs font-bold text-right" title="Standar nilai (maks)" />
                             <button onClick={handleAddPenilaianItem} className="bg-slate-800 hover:bg-slate-900 text-white px-3 py-2 rounded-xl font-bold text-[10px] flex items-center justify-center gap-1 shrink-0"><Icon name="Plus" className="w-3.5 h-3.5 text-white" /> Tambah</button>
+                          </div>
+                        </div>
+                        <div className="bg-white border border-slate-200 rounded-2xl p-3 space-y-2">
+                          <div className="flex justify-between items-center gap-2">
+                            <span className="text-[10px] font-black text-slate-700 uppercase">Predikat Nilai &mdash; {penilaianBelt}</span>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <span className={`px-2 py-0.5 rounded-lg text-[9px] font-black border ${hasCustomPred ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-gray-100 text-gray-500 border-gray-200'}`}>{hasCustomPred ? ('KUSTOM: ' + currentPreds.length) : 'BAWAAN'}</span>
+                              {hasCustomPred && <button onClick={handleResetPredikat} className="bg-red-50 hover:bg-red-100 text-red-600 px-2 py-1 rounded-lg font-bold text-[9px] border border-red-100" title="Reset Predikat">Reset</button>}
+                            </div>
+                          </div>
+                          <p className="text-[9px] text-slate-500 font-semibold">Skala 0&ndash;10 (nilai tiap item dikonversi proporsional). Diurutkan otomatis dari ambang tertinggi; nilai di bawah ambang terendah memakai predikat terakhir. Dipakai pada Formulir Nilai, tabel raport, dan tampilan atlet.</p>
+                          <div className="space-y-1.5 max-h-52 overflow-y-auto">
+                            {shownPreds.map((pred, pri) => (
+                              <div key={String(pred.id)} className="bg-slate-50 border border-slate-100 rounded-xl p-2 flex justify-between items-center gap-2">
+                                {editingPredId === pred.id ? (
+                                  <div className="flex-1 flex flex-col sm:flex-row gap-1.5">
+                                    <input type="text" value={editPredLabel} onChange={e => setEditPredLabel(e.target.value)} className="flex-1 min-w-0 p-1.5 bg-white border rounded-lg text-xs font-bold" placeholder="Nama predikat" />
+                                    <input type="number" min="0" max="10" step="0.5" value={editPredMin} onChange={e => setEditPredMin(e.target.value)} className="sm:w-20 p-1.5 bg-white border rounded-lg text-xs font-bold text-right" title="Ambang minimal (skala 0-10)" />
+                                    <button onClick={handleSaveEditPredikat} className="bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-1.5 rounded-lg font-bold text-[10px] shrink-0">Simpan</button>
+                                    <button onClick={() => setEditingPredId(null)} className="bg-gray-400 hover:bg-gray-500 text-white px-2 py-1.5 rounded-lg font-bold text-[10px] shrink-0">Batal</button>
+                                  </div>
+                                ) : (
+                                  <>
+                                    <div className="min-w-0">
+                                      <span className="block font-bold text-gray-800 truncate">{pri + 1}. {pred.label}</span>
+                                      <span className="text-[9px] font-bold text-slate-500">Ambang minimal: {pred.minVal}</span>
+                                    </div>
+                                    <div className="flex gap-1 shrink-0">
+                                      <button onClick={() => handleStartEditPredikat(pred)} className="p-1.5 bg-amber-50 hover:bg-amber-100 text-amber-600 rounded-lg border border-amber-100" title="Edit Predikat"><Icon name="Pencil" className="w-3.5 h-3.5" /></button>
+                                      <button onClick={() => handleDeletePredikat(pred)} className="p-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg border border-red-100" title="Hapus Predikat"><Icon name="Trash2" className="w-3.5 h-3.5" /></button>
+                                    </div>
+                                  </>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                          <div className="flex flex-col sm:flex-row gap-1.5 pt-1.5 border-t border-slate-100">
+                            <input type="text" placeholder="Nama predikat (contoh: A (Amat Bisa))" value={newPredLabel} onChange={e => setNewPredLabel(e.target.value)} className="flex-1 min-w-0 p-2 bg-gray-50 border rounded-xl text-xs" />
+                            <input type="number" min="0" max="10" step="0.5" placeholder="Ambang" value={newPredMin} onChange={e => setNewPredMin(e.target.value)} className="sm:w-24 p-2 bg-gray-50 border rounded-xl text-xs font-bold text-right" title="Ambang minimal (skala 0-10)" />
+                            <button onClick={handleAddPredikat} className="bg-slate-800 hover:bg-slate-900 text-white px-3 py-2 rounded-xl font-bold text-[10px] flex items-center justify-center gap-1 shrink-0"><Icon name="Plus" className="w-3.5 h-3.5 text-white" /> Tambah</button>
                           </div>
                         </div>
                         <div className="flex flex-col sm:flex-row gap-2">
@@ -6715,7 +6886,7 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
                           </div>
                           <div className="flex justify-between items-center">
                             <span>Tanggal & Jam Daftar:</span>
-                            <span className="font-bold text-gray-600">{formatRegDateTime(myRegistration.registeredAt)}</span>
+                            <span className="font-bold text-gray-600">{formatRegDateTime(regRegisteredAt(myRegistration))}</span>
                           </div>
                           <div className="flex justify-between items-center">
                             <span>Status:</span>
@@ -9027,17 +9198,17 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
           theme: 'striped',
           margin: { left: 8, right: 8 },
           headStyles: { fillColor: [185, 28, 28], fontSize: 7.5 },
-          styles: { fontSize: 7, cellPadding: 1.5, overflow: 'linebreak' },
+          styles: { fontSize: 7, cellPadding: 1.2, overflow: 'linebreak' },
           columnStyles: {
             0: { halign: 'center', cellWidth: 7 },
-            1: { cellWidth: 38 },
-            2: { cellWidth: 24 },
-            3: { cellWidth: 24 },
-            4: { halign: 'center', cellWidth: 16 },
-            5: { cellWidth: 19 },
-            6: { halign: 'center', cellWidth: 15 },
-            7: { cellWidth: 27 },
-            8: { halign: 'center', cellWidth: 18 }
+            1: {},
+            2: { cellWidth: 21 },
+            3: { cellWidth: 23 },
+            4: { halign: 'center', cellWidth: 16, fontSize: 6.4 },
+            5: { cellWidth: 18 },
+            6: { halign: 'center', cellWidth: 14 },
+            7: { cellWidth: 25 },
+            8: { halign: 'center', cellWidth: 16, fontSize: 6.4 }
           },
           didParseCell: function(cellData) {
             if (cellData.section === 'body' && cellData.column.index === 0) {
