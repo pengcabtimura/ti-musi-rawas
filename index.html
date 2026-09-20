@@ -1193,7 +1193,7 @@
       
       const myClubUktRegsCount = uktRegistrations.filter(r => {
          const u = users.find(x => x.id === r.athleteId);
-         return u && (user.role === 'super_admin' ? true : u.club === user.club);
+         return u && r.status !== 'rejected' && (user.role === 'super_admin' ? true : u.club === user.club);
       }).length;
 
       const isAtletOrPelatih = user.role === 'atlet' || user.role === 'pelatih';
@@ -3470,7 +3470,7 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
             if (!isFeatureAllowed(activeUser.role, 'ukt')) {
               return <div className="text-center py-10 font-bold text-gray-400">Anda tidak diizinkan mengakses modul UKT.</div>;
             }
-            return <UKTView user={activeUser} events={uktEvents} addUktEvent={addUktEvent} updateUktEvent={updateUktEvent} deleteUktEvent={deleteUktEvent} registrations={uktRegistrations} addUktReg={addUktReg} updateUktReg={updateUktReg} users={users} updateUser={updateUser} points={athletePoints} addPoint={addPoint} updatePoint={updatePoint} historicalRaports={historicalRaports} addRaport={addRaport} updateRaport={updateRaport} deleteRaport={deleteRaport} triggerToast={triggerToast} poinRules={poinRules} penilaianItems={uktPenilaianItems} addPenilaianItem={addUktPenilaianItem} updatePenilaianItem={updateUktPenilaianItem} deletePenilaianItem={deleteUktPenilaianItem} penilaianPredikat={uktPenilaianPredikat} addPenilaianPredikat={addUktPenilaianPredikat} updatePenilaianPredikat={updateUktPenilaianPredikat} deletePenilaianPredikat={deleteUktPenilaianPredikat} />;
+            return <UKTView user={activeUser} events={uktEvents} addUktEvent={addUktEvent} updateUktEvent={updateUktEvent} deleteUktEvent={deleteUktEvent} registrations={uktRegistrations} addUktReg={addUktReg} updateUktReg={updateUktReg} deleteUktReg={deleteUktReg} users={users} updateUser={updateUser} points={athletePoints} addPoint={addPoint} updatePoint={updatePoint} historicalRaports={historicalRaports} addRaport={addRaport} updateRaport={updateRaport} deleteRaport={deleteRaport} triggerToast={triggerToast} poinRules={poinRules} penilaianItems={uktPenilaianItems} addPenilaianItem={addUktPenilaianItem} updatePenilaianItem={updateUktPenilaianItem} deletePenilaianItem={deleteUktPenilaianItem} penilaianPredikat={uktPenilaianPredikat} addPenilaianPredikat={addUktPenilaianPredikat} updatePenilaianPredikat={updateUktPenilaianPredikat} deletePenilaianPredikat={deleteUktPenilaianPredikat} />;
           
           case 'kejuaraan': 
             if (!isFeatureAllowed(activeUser.role, 'kejuaraan')) {
@@ -4726,7 +4726,7 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
       );
     }
 
-    function UKTView({ user, events, addUktEvent, updateUktEvent, deleteUktEvent, registrations, addUktReg, updateUktReg, users, updateUser, points, addPoint, updatePoint, historicalRaports, addRaport, updateRaport, deleteRaport, triggerToast, poinRules, penilaianItems = [], addPenilaianItem, updatePenilaianItem, deletePenilaianItem, penilaianPredikat = [], addPenilaianPredikat, updatePenilaianPredikat, deletePenilaianPredikat }) {
+    function UKTView({ user, events, addUktEvent, updateUktEvent, deleteUktEvent, registrations, addUktReg, updateUktReg, deleteUktReg, users, updateUser, points, addPoint, updatePoint, historicalRaports, addRaport, updateRaport, deleteRaport, triggerToast, poinRules, penilaianItems = [], addPenilaianItem, updatePenilaianItem, deletePenilaianItem, penilaianPredikat = [], addPenilaianPredikat, updatePenilaianPredikat, deletePenilaianPredikat }) {
       const [activeTab, setActiveTab] = useState('daftar');
       const uktPoinMengikuti = poinRules && poinRules.ukt_mengikuti !== undefined ? poinRules.ukt_mengikuti : 3;
       const uktPoinLulus = poinRules && poinRules.ukt_lulus !== undefined ? poinRules.ukt_lulus : 5; 
@@ -5029,7 +5029,10 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
         'Sabuk Hitam DAN VIII': 800000
       });
 
-      const [gradingRegId, setGradingRegId] = useState(null); 
+      const [gradingRegId, setGradingRegId] = useState(null);
+      // ===== Task 23: state Edit data pendaftaran (Kelola & Nilai) =====
+      const [editingRegId, setEditingRegId] = useState(null);
+      const [editRegForm, setEditRegForm] = useState({ targetBelt: '', cost: 0, status: 'pending_confirmation', paymentStatus: 'pending' }); 
       // ===== Task 20: state Pengaturan Item Penilaian (per sabuk) =====
       const [showPenilaianSettings, setShowPenilaianSettings] = useState(false);
       const [penilaianBelt, setPenilaianBelt] = useState(beltSequence[0]);
@@ -5280,6 +5283,39 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
         updateUktReg(regId, {...r, paymentStatus: 'paid'}); 
         triggerToast("Pembayaran berhasil dikonfirmasi."); 
       };
+
+      // ===== Task 23: Edit & Hapus data pendaftaran UKT (Kelola & Nilai) =====
+      const startEditReg = (reg) => {
+        setGradingRegId(null);
+        setEditingRegId(reg.id);
+        setEditRegForm({
+          targetBelt: reg.targetBelt || beltSequence[0],
+          cost: Number(reg.cost) || 0,
+          status: reg.status || 'pending_confirmation',
+          paymentStatus: reg.paymentStatus || 'pending'
+        });
+      };
+
+      const handleSaveEditReg = (e) => {
+        e.preventDefault();
+        const r = registrations.find(x => x.id === editingRegId);
+        if (!r) { triggerToast("Data pendaftaran tidak ditemukan.", "error"); setEditingRegId(null); return; }
+        if (!editRegForm.targetBelt) { triggerToast("Target sabuk wajib dipilih.", "error"); return; }
+        updateUktReg(editingRegId, { ...r, targetBelt: editRegForm.targetBelt, cost: Number(editRegForm.cost) || 0, status: editRegForm.status, paymentStatus: editRegForm.paymentStatus });
+        setEditingRegId(null);
+        triggerToast("Data pendaftaran UKT berhasil diperbarui!");
+      };
+
+      const handleDeleteRegistration = (reg) => {
+        const delAthlete = users.find(u => u.id === reg.athleteId);
+        const delLabel = delAthlete ? delAthlete.name : 'peserta ini';
+        if (window.confirm(`Hapus pendaftaran UKT atas nama "${delLabel}"? Tindakan ini tidak dapat dibatalkan.`)) {
+          deleteUktReg(reg.id);
+          if (gradingRegId === reg.id) setGradingRegId(null);
+          setEditingRegId(null);
+          triggerToast("Pendaftaran UKT berhasil dihapus.");
+        }
+      };
       
       const handleSaveRaport = (e) => {
         e.preventDefault(); 
@@ -5338,8 +5374,8 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
             `"${(athlete.sabuk || 'Sabuk Putih Polos (Geup 10)').replace(/"/g, '""')}"`, 
             `"${(reg.targetBelt || '-').replace(/"/g, '""')}"`, 
             `"${(event ? event.title : '-').replace(/"/g, '""')}"`, 
-            `"${reg.status === 'confirmed' ? 'LAYAK (DIKONFIRMASI)' : 'MENUNGGU'}"`,
-            `"${reg.paymentStatus === 'paid' ? 'LUNAS' : 'PENDING'}"`,
+            `"${reg.status === 'confirmed' ? 'LAYAK (DIKONFIRMASI)' : reg.status === 'rejected' ? 'DITOLAK' : 'MENUNGGU'}"`,
+            `"${reg.paymentStatus === 'paid' ? 'LUNAS' : reg.paymentStatus === 'rejected' ? 'DITOLAK' : 'PENDING'}"`,
             `"${formatRegDateTime(regRegisteredAt(reg))}"`
           ];
         }).filter(Boolean);
@@ -5355,9 +5391,10 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
       // FITUR BARU: DOWNLOAD PESERTA UKT BERBENTUK PDF (DENGAN FILTER PERIODE)
       const handleDownloadUKTPDF = (filterEventId) => {
         // Tentukan data pendaftar berdasarkan filter
-        const regsToExport = filterEventId && filterEventId !== 'semua'
+        const regsToExport = ((filterEventId && filterEventId !== 'semua')
           ? visibleRegistrations.filter(r => r.uktEventId === Number(filterEventId))
-          : visibleRegistrations;
+          : visibleRegistrations
+        ).filter(r => r.status !== 'rejected'); // Task 23: ditolak tidak masuk daftar peserta
 
         if (regsToExport.length === 0) {
           triggerToast("Tidak ada data pendaftar UKT untuk periode/event yang dipilih.", "error");
@@ -5950,8 +5987,8 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
             const namaAtlet = values[0];
             const targetBelt = values[5];
             const namaEvent = values[6];
-            const statusVerif = values[7] === 'LAYAK (DIKONFIRMASI)' ? 'confirmed' : 'pending_confirmation';
-            const statusBayar = values[8] === 'LUNAS' ? 'paid' : 'pending';
+            const statusVerif = values[7] === 'LAYAK (DIKONFIRMASI)' ? 'confirmed' : values[7] === 'DITOLAK' ? 'rejected' : 'pending_confirmation';
+            const statusBayar = values[8] === 'LUNAS' ? 'paid' : values[8] === 'DITOLAK' ? 'rejected' : 'pending';
 
             const athlete = users.find(u => u.name && u.name.toLowerCase() === (namaAtlet || '').toLowerCase());
             const ev = events.find(e => e.title && e.title.toLowerCase() === (namaEvent || '').toLowerCase());
@@ -6015,20 +6052,23 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
       // =====================================================================
       const renderKelolaNilaiSection = (ev) => {
         const evRegs = visibleRegistrations.filter(r => r.uktEventId === ev.id);
+        // Task 23: pendaftar berstatus DITOLAK tidak dihitung sebagai peserta (data real peserta UKT)
+        const evRegsActive = evRegs.filter(r => r.status !== 'rejected');
+        const evRejectedCount = evRegs.length - evRegsActive.length;
         const evBeltCounts = {};
         beltSequence.forEach(b => evBeltCounts[b] = 0);
-        evRegs.forEach(reg => {
+        evRegsActive.forEach(reg => {
           if (evBeltCounts[reg.targetBelt] !== undefined) evBeltCounts[reg.targetBelt]++;
         });
         const evActiveBelts = beltSequence.filter(b => evBeltCounts[b] > 0);
-        const confirmedCount = evRegs.filter(r => r.status === 'confirmed').length;
-        const paidCount = evRegs.filter(r => r.paymentStatus === 'paid').length;
+        const confirmedCount = evRegsActive.filter(r => r.status === 'confirmed').length;
+        const paidCount = evRegsActive.filter(r => r.paymentStatus === 'paid').length;
 
         return (
           <div className="space-y-4 animate-fade-in pt-1">
               <div className="flex flex-col gap-3 bg-white p-4 rounded-3xl shadow-sm border border-gray-100">
                 <div className="flex justify-between items-center w-full">
-                  <span className="text-[11px] font-bold text-gray-700 pl-1 whitespace-nowrap">Total Pendaftar: {evRegs.length}</span>
+                  <span className="text-[11px] font-bold text-gray-700 pl-1 whitespace-nowrap">Total Pendaftar: {evRegsActive.length}{evRejectedCount > 0 && <span className="ml-1.5 text-[9px] font-bold text-red-500 bg-red-50 border border-red-100 px-1.5 py-0.5 rounded-lg">{evRejectedCount} ditolak</span>}</span>
                   <div className="flex flex-wrap gap-1.5 justify-end">
                     <button onClick={handleDownloadUKTData} className="bg-blue-600 hover:bg-blue-700 transition text-white px-2.5 py-2 rounded-xl text-[9px] font-bold shadow-sm flex items-center gap-1">
                       <Icon name="Download" className="w-3.5 h-3.5 text-white" /> CSV
@@ -6061,7 +6101,7 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
                     </div>
                     <div className="grid grid-cols-3 gap-2">
                       <div className="bg-red-50 rounded-lg p-2 text-center border border-red-100">
-                        <div className="text-base font-black text-red-700 leading-none">{evRegs.length}</div>
+                        <div className="text-base font-black text-red-700 leading-none">{evRegsActive.length}</div>
                         <div className="text-[8px] font-bold text-red-400 uppercase mt-1">Terdaftar</div>
                       </div>
                       <div className="bg-green-50 rounded-lg p-2 text-center border border-green-100">
@@ -6073,6 +6113,11 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
                         <div className="text-[8px] font-bold text-blue-400 uppercase mt-1">Lunas</div>
                       </div>
                     </div>
+                    {evRejectedCount > 0 && (
+                      <div className="bg-red-50 border border-red-100 rounded-lg px-2 py-1.5 text-center text-[9px] font-bold text-red-600">
+                        {evRejectedCount} pendaftar ditolak &mdash; tidak masuk hitungan peserta UKT
+                      </div>
+                    )}
                     <div className="text-[9px] text-gray-500 text-center pt-1">
                       Periode: <b className="text-red-700">{ev.period}</b> &middot; Tanggal Pelaksanaan: <b className="text-red-700">{ev.executionDate || '-'}</b>
                     </div>
@@ -6138,7 +6183,7 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
                       </div>
                       <div className="mt-3 pt-2 border-t border-gray-100 flex justify-between items-center text-[10px]">
                         <span className="font-bold text-gray-500 uppercase">Total Peserta</span>
-                        <span className="font-black text-red-700 text-sm">{evRegs.length} orang</span>
+                        <span className="font-black text-red-700 text-sm">{evRegsActive.length} orang</span>
                       </div>
                     </>
                   ) : (
@@ -6177,6 +6222,59 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
                           </span>
                         </div>
                       </div>
+
+                      {/* Task 23: menu Edit & Hapus data pendaftaran */}
+                      <div className="flex gap-2 mt-2">
+                        <button type="button" onClick={() => startEditReg(reg)} className="flex-1 bg-amber-500 hover:bg-amber-600 text-white py-2 rounded-xl text-[11px] font-bold shadow-sm transition flex items-center justify-center gap-1">
+                          <Icon name="Pencil" className="w-3.5 h-3.5 text-white" /> Edit Data
+                        </button>
+                        <button type="button" onClick={() => handleDeleteRegistration(reg)} className="flex-1 bg-white hover:bg-red-50 border border-red-300 text-red-600 py-2 rounded-xl text-[11px] font-bold shadow-sm transition flex items-center justify-center gap-1">
+                          <Icon name="Trash2" className="w-3.5 h-3.5 text-red-500" /> Hapus
+                        </button>
+                      </div>
+
+                      {editingRegId === reg.id && (
+                        <form onSubmit={handleSaveEditReg} className="bg-sky-50 p-4 rounded-2xl border border-sky-200 space-y-3 mt-3 animate-fade-in text-xs">
+                          <div className="flex justify-between items-center pb-2 border-b border-sky-200">
+                            <span className="font-extrabold text-xs text-sky-900 uppercase">Edit Data Pendaftaran &mdash; {athlete.name}</span>
+                            <button type="button" onClick={() => setEditingRegId(null)}><Icon name="XCircle" className="w-5 h-5 text-gray-400" /></button>
+                          </div>
+                          <div className="grid grid-cols-1 gap-2.5">
+                            <label className="block">
+                              <span className="text-[9px] uppercase text-gray-500 font-bold">Target Sabuk</span>
+                              <select value={editRegForm.targetBelt} onChange={e => setEditRegForm(prev => ({ ...prev, targetBelt: e.target.value }))} className="w-full p-2 bg-white border border-gray-200 rounded-xl text-xs font-bold mt-0.5">
+                                {beltSequence.map(b => <option key={b} value={b}>{b}</option>)}
+                              </select>
+                            </label>
+                            <label className="block">
+                              <span className="text-[9px] uppercase text-gray-500 font-bold">Biaya Pendaftaran (Rp)</span>
+                              <input type="number" min="0" step="1000" value={editRegForm.cost} onChange={e => setEditRegForm(prev => ({ ...prev, cost: e.target.value }))} className="w-full p-2 bg-white border border-gray-200 rounded-xl text-xs font-bold mt-0.5" />
+                            </label>
+                            <div className="grid grid-cols-2 gap-2">
+                              <label className="block">
+                                <span className="text-[9px] uppercase text-gray-500 font-bold">Status Data</span>
+                                <select value={editRegForm.status} onChange={e => setEditRegForm(prev => ({ ...prev, status: e.target.value }))} className="w-full p-2 bg-white border border-gray-200 rounded-xl text-xs font-bold mt-0.5">
+                                  <option value="pending_confirmation">Menunggu Verifikasi</option>
+                                  <option value="confirmed">Layak (Dikonfirmasi)</option>
+                                  <option value="rejected">Ditolak</option>
+                                </select>
+                              </label>
+                              <label className="block">
+                                <span className="text-[9px] uppercase text-gray-500 font-bold">Status Bayar</span>
+                                <select value={editRegForm.paymentStatus} onChange={e => setEditRegForm(prev => ({ ...prev, paymentStatus: e.target.value }))} className="w-full p-2 bg-white border border-gray-200 rounded-xl text-xs font-bold mt-0.5">
+                                  <option value="pending">Pending</option>
+                                  <option value="paid">Lunas</option>
+                                  <option value="rejected">Ditolak</option>
+                                </select>
+                              </label>
+                            </div>
+                          </div>
+                          <div className="flex gap-2 pt-1">
+                            <button type="submit" className="flex-1 bg-sky-600 hover:bg-sky-700 text-white py-2 rounded-xl font-bold text-xs shadow-md">Simpan Perubahan</button>
+                            <button type="button" onClick={() => setEditingRegId(null)} className="bg-gray-400 hover:bg-gray-500 text-white py-2 px-3 rounded-xl font-bold text-xs shadow-md">Batal</button>
+                          </div>
+                        </form>
+                      )}
 
                       <div className="mt-3">
                         {reg.status === 'rejected' && (
