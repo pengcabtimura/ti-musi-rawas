@@ -350,6 +350,7 @@
     const initialUsers = [
       { id: 1, username: 'adminmura', password: 'admin123', name: 'TI MUSI RAWAS', email: 'admin@tkd.com', role: 'super_admin', club: 'TI MUSI RAWAS', gender: 'Laki-laki', placeOfBirth: 'Muara Beliti', dateOfBirth: '1989-08-12', regNo: '', avatar: '', status: 'Aktif', suspendedUntil: null },
       { id: 2, username: 'adminmirasi', password: 'admin123', name: 'MASC MIRASI', email: 'mascmirasi@tkd.com', role: 'pengurus_club', club: 'MASC MIRASI', gender: 'Laki-laki', placeOfBirth: 'MIRASI', dateOfBirth: '2005-05-05', regNo: '', avatar: '', status: 'Aktif', suspendedUntil: null },
+      { id: 99001, username: 'penguji', password: 'penguji123', name: 'PENGUJI UKT MUSI RAWAS', email: 'penguji@tkd.com', role: 'penguji', club: 'Pusat Mura', gender: 'Laki-laki', placeOfBirth: 'Musi Rawas', dateOfBirth: '1990-01-01', regNo: '', avatar: '', status: 'Aktif', suspendedUntil: null },
       { id: 3, username: 'adminjayaloka', password: 'admin123', name: 'MASC JAYALOKA', email: 'mascjayaloka@tkd.com', role: 'pengurus_club', club: 'MASC JAYALOKA', gender: 'Laki-laki', placeOfBirth: 'JAYALOKA', dateOfBirth: '1997-05-05', regNo: '', avatar: '', status: 'Aktif', suspendedUntil: null },
       { id: 4, username: 'adminbeliti', password: 'admin123', name: 'MASC MUARA BELITI', email: 'mascbeliti@tkd.com', role: 'pengurus_club', club: 'MASC MUARA BELITI', gender: 'Laki-laki', placeOfBirth: 'MUARA BELITI', dateOfBirth: '1992-04-15', regNo: '', avatar: '', status: 'Aktif', suspendedUntil: null },
       { id: 5, username: 'JOKO PURNOMO', password: 'TKDMURA', name: 'JOKO PURNOMO', email: 'pelatih@tkd.com', role: 'pelatih', club: 'MASC MUARA BELITI', gender: 'Laki-laki', placeOfBirth: 'GIRIYOSO', dateOfBirth: '1997-06-11', regNo: '5404664', license: 'Nasional Pratama', sabuk: 'Sabuk Hitam DAN III', avatar: '', status: 'Aktif', suspendedUntil: null },
@@ -1454,6 +1455,17 @@
               </>
             )}
           </div>
+
+          {user.role === 'penguji' && (
+            <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-3xl p-4 text-white shadow-md flex items-center gap-3">
+              <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center shrink-0"><Icon name="ClipboardCheck" className="w-5 h-5 text-amber-300" /></div>
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-black uppercase tracking-wide">Panel Penguji UKT</div>
+                <div className="text-[10px] text-slate-300 font-semibold mt-0.5 leading-relaxed">Buka menu <b className="text-white">UKT</b> &rarr; bagian Pelaksanaan &rarr; <b className="text-white">Kelola &amp; Nilai</b> untuk menilai peserta. Akun penguji hanya dapat menilai, tidak mengelola pendaftaran.</div>
+              </div>
+              <button onClick={() => setCurrentTab('ukt')} className="bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-black px-3 py-2 rounded-xl shrink-0 transition">BUKA UKT</button>
+            </div>
+          )}
 
           {(user.role === 'atlet' || user.role === 'pelatih') && (
             <TiberIntegration user={user} updateUser={updateUser} triggerToast={triggerToast} />
@@ -3540,11 +3552,11 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
             <main className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50 pb-6 print:overflow-visible">{renderContent()}</main>
             <nav className="shrink-0 w-full bg-white border-t border-gray-100 flex justify-around px-1 pt-2 pb-safe shadow-[0_-4px_20px_rgba(0,0,0,0.06)] z-50 no-print relative">
               <NavItem icon="Home" label="Beranda" active={currentTab === 'home'} onClick={() => setCurrentTab('home')} />
-              <NavItem icon="ClipboardCheck" label="Admin" active={currentTab === 'administrasi'} onClick={() => setCurrentTab('administrasi')} />
+              {user.role !== 'penguji' && <NavItem icon="ClipboardCheck" label="Admin" active={currentTab === 'administrasi'} onClick={() => setCurrentTab('administrasi')} />}
               <NavItem icon="FileText" label="UKT" active={currentTab === 'ukt'} onClick={() => setCurrentTab('ukt')} />
-              <NavItem icon="Award" label="Event" active={currentTab === 'kejuaraan'} onClick={() => setCurrentTab('kejuaraan')} />
-              <NavItem icon="Activity" label="Poin" active={currentTab === 'poin'} onClick={() => setCurrentTab('poin')} />
-              <NavItem icon="HeartPulse" label="Tes Fisik" active={currentTab === 'tes_fisik'} onClick={() => setCurrentTab('tes_fisik')} />
+              {user.role !== 'penguji' && <NavItem icon="Award" label="Event" active={currentTab === 'kejuaraan'} onClick={() => setCurrentTab('kejuaraan')} />}
+              {user.role !== 'penguji' && <NavItem icon="Activity" label="Poin" active={currentTab === 'poin'} onClick={() => setCurrentTab('poin')} />}
+              {user.role !== 'penguji' && <NavItem icon="HeartPulse" label="Tes Fisik" active={currentTab === 'tes_fisik'} onClick={() => setCurrentTab('tes_fisik')} />}
               {(user.role === 'super_admin' || user.role === 'pengurus_club') && <NavItem icon="Users" label="Akun" active={currentTab === 'akun'} onClick={() => setCurrentTab('akun')} />}
             </nav>
           </div>
@@ -5032,7 +5044,9 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
       const [gradingRegId, setGradingRegId] = useState(null);
       // ===== Task 23: state Edit data pendaftaran (Kelola & Nilai) =====
       const [editingRegId, setEditingRegId] = useState(null);
-      const [editRegForm, setEditRegForm] = useState({ targetBelt: '', cost: 0, status: 'pending_confirmation', paymentStatus: 'pending' }); 
+      const [editRegForm, setEditRegForm] = useState({ targetBelt: '', cost: 0, status: 'pending_confirmation', paymentStatus: 'pending' });
+      // ===== Task 24: filter sabuk daftar peserta (Kelola & Nilai) =====
+      const [kelolaSabukFilter, setKelolaSabukFilter] = useState('semua'); 
       // ===== Task 20: state Pengaturan Item Penilaian (per sabuk) =====
       const [showPenilaianSettings, setShowPenilaianSettings] = useState(false);
       const [penilaianBelt, setPenilaianBelt] = useState(beltSequence[0]);
@@ -6028,9 +6042,14 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
         }
 
         if (user.role === 'super_admin') return true;
+        if (user.role === 'penguji') return true; // Task 24: penguji menilai peserta seluruh club
         if (user.role === 'pengurus_club') return athlete.club === user.club;
         return false;
       });
+
+      // Task 24: matriks hak akses UKT — penguji HANYA menilai; pengurus club TIDAK dapat menilai
+      const canGrade = user.role === 'super_admin' || user.role === 'penguji';
+      const canManage = user.role === 'super_admin' || user.role === 'pengurus_club';
 
       const uktBeltCounts = {};
       beltSequence.forEach(b => uktBeltCounts[b] = 0);
@@ -6055,6 +6074,8 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
         // Task 23: pendaftar berstatus DITOLAK tidak dihitung sebagai peserta (data real peserta UKT)
         const evRegsActive = evRegs.filter(r => r.status !== 'rejected');
         const evRejectedCount = evRegs.length - evRegsActive.length;
+        // Task 24: filter sabuk — hanya mempengaruhi daftar peserta yang tampil (statistik tetap global)
+        const evRegsListed = kelolaSabukFilter === 'semua' ? evRegs : evRegs.filter(r => r.targetBelt === kelolaSabukFilter);
         const evBeltCounts = {};
         beltSequence.forEach(b => evBeltCounts[b] = 0);
         evRegsActive.forEach(reg => {
@@ -6069,6 +6090,7 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
               <div className="flex flex-col gap-3 bg-white p-4 rounded-3xl shadow-sm border border-gray-100">
                 <div className="flex justify-between items-center w-full">
                   <span className="text-[11px] font-bold text-gray-700 pl-1 whitespace-nowrap">Total Pendaftar: {evRegsActive.length}{evRejectedCount > 0 && <span className="ml-1.5 text-[9px] font-bold text-red-500 bg-red-50 border border-red-100 px-1.5 py-0.5 rounded-lg">{evRejectedCount} ditolak</span>}</span>
+                  {canManage && (
                   <div className="flex flex-wrap gap-1.5 justify-end">
                     <button onClick={handleDownloadUKTData} className="bg-blue-600 hover:bg-blue-700 transition text-white px-2.5 py-2 rounded-xl text-[9px] font-bold shadow-sm flex items-center gap-1">
                       <Icon name="Download" className="w-3.5 h-3.5 text-white" /> CSV
@@ -6078,6 +6100,7 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
                       <input type="file" accept=".csv" className="hidden" onChange={handleUploadUKTData} />
                     </label>
                   </div>
+                  )}
                 </div>
                 
                 {/* PELAKSANAAN: RINGKASAN PESERTA & UNDUH PDF */}
@@ -6142,22 +6165,24 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
                   </div>
                 </div>
 
-                {/* KOLOM PENCARIAN DIPERBESAR */}
-                <div className="relative w-full">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Icon name="Search" className="w-4 h-4 text-gray-400" />
+                {/* PENCARIAN + FILTER SABUK (Task 24) */}
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <div className="relative flex-1 min-w-0">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Icon name="Search" className="w-4 h-4 text-gray-400" />
+                    </div>
+                    <input type="text" placeholder="Cari nama peserta UKT..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full text-xs pl-9 p-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-1 focus:ring-red-500 transition" />
                   </div>
-                  <input 
-                    type="text" 
-                    placeholder="Cari nama peserta UKT..." 
-                    value={searchQuery} 
-                    onChange={e => setSearchQuery(e.target.value)} 
-                    className="w-full text-xs pl-9 p-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-1 focus:ring-red-500 transition" 
-                  />
+                  <select value={kelolaSabukFilter} onChange={e => setKelolaSabukFilter(e.target.value)} className="w-full sm:w-64 shrink-0 text-xs p-2.5 bg-gray-50 border border-gray-200 rounded-xl font-bold focus:ring-1 focus:ring-red-500 transition" title="Filter peserta berdasarkan target sabuk">
+                    <option value="semua">Semua Sabuk ({evRegsActive.length} peserta)</option>
+                    {beltSequence.filter(b => evRegs.some(r => r.targetBelt === b)).map(b => (
+                      <option key={b} value={b}>{b} ({evRegsActive.filter(r => r.targetBelt === b).length} peserta)</option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
-              {/* STATISTIK SABUK UKT */}
+                            {/* STATISTIK SABUK UKT */}
               <div className="bg-white p-4 rounded-3xl shadow-sm border border-gray-100">
                   <div className="border-b pb-2 mb-3 flex justify-between items-end">
                       <h3 className="font-extrabold text-xs text-gray-800 uppercase flex items-center gap-1.5">
@@ -6192,7 +6217,7 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
               </div>
 
               <div className="space-y-3">
-                {evRegs.map(reg => {
+                {evRegsListed.map(reg => {
                   const athlete = users.find(u => u.id === reg.athleteId);
                   const event = events.find(e => e.id === reg.uktEventId);
                   if (!athlete || !event) return null;
@@ -6223,7 +6248,8 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
                         </div>
                       </div>
 
-                      {/* Task 23: menu Edit & Hapus data pendaftaran */}
+                      {/* Task 23: menu Edit & Hapus data pendaftaran (Task 24: hanya pengelola) */}
+                      {canManage && (
                       <div className="flex gap-2 mt-2">
                         <button type="button" onClick={() => startEditReg(reg)} className="flex-1 bg-amber-500 hover:bg-amber-600 text-white py-2 rounded-xl text-[11px] font-bold shadow-sm transition flex items-center justify-center gap-1">
                           <Icon name="Pencil" className="w-3.5 h-3.5 text-white" /> Edit Data
@@ -6232,6 +6258,7 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
                           <Icon name="Trash2" className="w-3.5 h-3.5 text-red-500" /> Hapus
                         </button>
                       </div>
+                      )}
 
                       {editingRegId === reg.id && (
                         <form onSubmit={handleSaveEditReg} className="bg-sky-50 p-4 rounded-2xl border border-sky-200 space-y-3 mt-3 animate-fade-in text-xs">
@@ -6282,7 +6309,7 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
                             Pendaftaran Telah Ditolak
                           </div>
                         )}
-                        {reg.status === 'pending_confirmation' && (
+                        {canManage && reg.status === 'pending_confirmation' && (
                           <div className="flex gap-2">
                             <button onClick={() => handleApproveRegistration(reg.id)} className="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 rounded-xl text-xs font-bold shadow-sm transition">
                               Konfirmasi Layak
@@ -6292,12 +6319,12 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
                             </button>
                           </div>
                         )}
-                        {reg.status === 'confirmed' && reg.paymentStatus === 'pending' && (
+                        {canManage && reg.status === 'confirmed' && reg.paymentStatus === 'pending' && (
                           <button onClick={() => handlePay(reg.id)} className="w-full bg-blue-600 text-white py-2 rounded-xl text-xs font-bold shadow-sm mt-2">
                             Konfirmasi Pembayaran
                           </button>
                         )}
-                        {reg.status === 'confirmed' && reg.paymentStatus === 'paid' && !reg.raport && (
+                        {canGrade && reg.status === 'confirmed' && reg.paymentStatus === 'paid' && !reg.raport && (
                           <button onClick={() => {
                             setGradingRegId(reg.id);
                             const penItemsForReg = getPenilaianItemsForBelt(reg.targetBelt); setGradeItems(penItemsForReg); const penInitScores = {}; penItemsForReg.forEach(pIt => { penInitScores[pIt.id] = Math.min(8, Number(pIt.standarNilai) || 0); }); setGradeScores(penInitScores);
@@ -6372,8 +6399,8 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
                     </div>
                   );
                 })}
-                {evRegs.length === 0 && (
-                  <p className="text-center text-gray-400 text-xs py-4 italic">Belum ada pendaftar UKT pada pelaksanaan ini.</p>
+                {evRegsListed.length === 0 && (
+                  <p className="text-center text-gray-400 text-xs py-4 italic">{kelolaSabukFilter !== 'semua' ? 'Tidak ada peserta pada filter sabuk ini.' : 'Belum ada pendaftar UKT pada pelaksanaan ini.'}</p>
                 )}
               </div>
           </div>
@@ -6908,10 +6935,10 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
                       </div>
                       <div className="pt-1 space-y-3 border-t border-dashed border-gray-200">
                         <span className="block text-[9px] font-black text-gray-400 uppercase tracking-widest">Pelaksanaan UKT — {ev.period}</span>
-                        {(user.role === 'super_admin' || user.role === 'pengurus_club') && (
+                        {(user.role === 'super_admin' || user.role === 'pengurus_club' || user.role === 'penguji') && (
                           <>
                             <button
-                              onClick={() => toggleSection(ev.id, 'kelola')}
+                              onClick={() => { toggleSection(ev.id, 'kelola'); setKelolaSabukFilter('semua'); }}
                               className={`w-full py-2.5 px-3 rounded-2xl font-bold text-[11px] flex justify-between items-center shadow-sm transition border no-print ${expandedSection === `${ev.id}|kelola` ? 'bg-red-700 text-white border-red-700' : 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'}`}
                             >
                               <span className="flex items-center gap-1.5 uppercase tracking-wide">
@@ -9069,6 +9096,7 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
         const totalPelatih = baseStatUsers.filter(u => u.role === 'pelatih').length;
         const totalPengurus = baseStatUsers.filter(u => u.role === 'pengurus_club').length;
         const totalSuperAdmin = baseStatUsers.filter(u => u.role === 'super_admin').length;
+        const totalPenguji = baseStatUsers.filter(u => u.role === 'penguji').length;
 
         // === KOP / HEADER ===
         doc.setFontSize(15);
@@ -9089,7 +9117,7 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
         doc.setFontSize(9);
         doc.setTextColor(50, 50, 50);
         doc.setFont("helvetica", "bold");
-        doc.text(`Total Anggota: ${totalUsers}  |  Atlet: ${totalAtlet}  |  Pelatih: ${totalPelatih}  |  Pengurus: ${totalPengurus}  |  Super Admin: ${totalSuperAdmin}`, 105, 40, { align: "center" });
+        doc.text(`Total Anggota: ${totalUsers}  |  Atlet: ${totalAtlet}  |  Pelatih: ${totalPelatih}  |  Pengurus: ${totalPengurus}  |  Penguji: ${totalPenguji}  |  Super Admin: ${totalSuperAdmin}`, 105, 40, { align: "center" });
 
         // === RINGKASAN PER SABUK ===
         doc.setFontSize(10);
@@ -9142,7 +9170,7 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
           const data = members.map((m, i) => [
             i + 1,
             m.name,
-            m.role === 'super_admin' ? 'Super Admin' : m.role === 'pengurus_club' ? 'Pengurus' : m.role === 'pelatih' ? 'Pelatih' : 'Atlet',
+            m.role === 'super_admin' ? 'Super Admin' : m.role === 'pengurus_club' ? 'Pengurus' : m.role === 'pelatih' ? 'Pelatih' : m.role === 'penguji' ? 'Penguji' : 'Atlet',
             m.club || '-',
             m.gender === 'Perempuan' ? 'P' : 'L',
             m.regNo || '-',
@@ -9190,7 +9218,7 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
           const data = noBeltUsers.map((m, i) => [
             i + 1,
             m.name,
-            m.role === 'super_admin' ? 'Super Admin' : 'Pengurus Club',
+            m.role === 'super_admin' ? 'Super Admin' : m.role === 'penguji' ? 'Penguji' : 'Pengurus Club',
             m.club || '-',
             m.email || '-',
             m.status === 'Nonaktif' ? 'SUSPENDED' : 'Aktif'
@@ -9267,7 +9295,8 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
         const cPelatih = visibleUsers.filter(u => u.role === 'pelatih').length;
         const cPengurus = visibleUsers.filter(u => u.role === 'pengurus_club').length;
         const cAdmin = visibleUsers.filter(u => u.role === 'super_admin').length;
-        doc.text(`Total: ${visibleUsers.length} akun  |  Atlet: ${cAtlet}  |  Pelatih: ${cPelatih}  |  Pengurus: ${cPengurus}  |  Super Admin: ${cAdmin}`, 105, 40, { align: "center" });
+        const cPenguji = visibleUsers.filter(u => u.role === 'penguji').length;
+        doc.text(`Total: ${visibleUsers.length} akun  |  Atlet: ${cAtlet}  |  Pelatih: ${cPelatih}  |  Pengurus: ${cPengurus}  |  Penguji: ${cPenguji}  |  Super Admin: ${cAdmin}`, 105, 40, { align: "center" });
 
         // === TABEL DAFTAR AKUN (8 KOLOM DATA: NAMA, USERNAME, TTL, TGL LAHIR, SABUK, NO REG, DOJANG, TGL TERDAFTAR) ===
         const fmtTanggal = (v) => { if (!v) return '-'; const d = new Date(v); return isNaN(d.getTime()) ? '-' : d.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' }); };
@@ -9418,6 +9447,7 @@ match /artifacts/simtkdmura/public/data/&#123;document=**&#125; &#123;
                   <option value="atlet">Atlet</option>
                   <option value="pelatih">Pelatih</option>
                   {user.role === 'super_admin' && <option value="pengurus_club">Pengurus Club</option>}
+                  {user.role === 'super_admin' && <option value="penguji">Penguji UKT</option>}
                   {user.role === 'super_admin' && <option value="super_admin">Super Admin</option>}
                 </select>
               </div>
